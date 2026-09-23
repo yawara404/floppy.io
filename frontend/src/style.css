@@ -575,6 +575,7 @@ textarea.input {
 }
 
 .post-body {
+  position: relative;
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -643,6 +644,67 @@ textarea.input {
 .post-actions {
   display: flex;
   gap: 14px;
+}
+
+/* 三点メニュー */
+.post-menu-btn {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  margin-left: 2px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.post-menu-btn:hover {
+  color: var(--link);
+  background: #eaf6fb;
+}
+
+.post-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+
+.post-menu {
+  position: absolute;
+  top: 30px;
+  right: 0;
+  z-index: 51;
+  min-width: 180px;
+  padding: 4px 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+}
+
+.post-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.post-menu-item:hover {
+  background: #f5f8fa;
+}
+
+.post-menu-item.danger {
+  color: var(--danger);
 }
 
 /* 削除の確認 */

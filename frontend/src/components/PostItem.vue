@@ -11,6 +11,7 @@ defineEmits(['delete', 'preview'])
 
 const canvas = ref(null)
 const playing = ref(false)
+const menuOpen = ref(false)
 const confirming = ref(false)
 
 // ドット絵が描かれていない投稿ではキャンバスを出さない
@@ -95,6 +96,18 @@ function fmtDate(s) {
         <span class="post-dot">·</span>
         <span class="post-date">{{ fmtDate(post.created_at) }}</span>
         <span class="post-bytes">🖴 {{ post.total_bytes.toLocaleString('ja-JP') }} bytes</span>
+
+        <!-- 三点メニュー（自分の投稿のみ） -->
+        <button
+          v-if="canDelete"
+          type="button"
+          class="post-menu-btn"
+          :aria-expanded="menuOpen ? 'true' : 'false'"
+          aria-label="投稿メニュー"
+          @click="menuOpen = !menuOpen"
+        >
+          ⋯
+        </button>
       </div>
 
       <p v-if="post.text" class="post-text">{{ post.text }}</p>
@@ -157,6 +170,22 @@ function fmtDate(s) {
         />
       </a>
 
+      <!-- 三点メニューのドロップダウン -->
+      <div
+        v-if="menuOpen"
+        class="post-menu-backdrop"
+        @click="menuOpen = false"
+      ></div>
+      <div v-if="menuOpen" class="post-menu">
+        <button
+          type="button"
+          class="post-menu-item danger"
+          @click="menuOpen = false; confirming = true"
+        >
+          🗑 削除（フォーマット）
+        </button>
+      </div>
+
       <div v-if="confirming" class="post-actions post-confirm">
         <span class="confirm-text">
           この投稿を削除しますか？（{{ post.total_bytes.toLocaleString('ja-JP') }} bytes 解放）
@@ -186,14 +215,6 @@ function fmtDate(s) {
         </button>
         <button type="button" class="link-btn" @click="$emit('preview', post)">
           埋め込み
-        </button>
-        <button
-          v-if="canDelete"
-          type="button"
-          class="link-btn danger"
-          @click="confirming = true"
-        >
-          🗑 フォーマット（削除）
         </button>
       </div>
     </div>
