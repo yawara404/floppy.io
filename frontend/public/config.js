@@ -20,9 +20,9 @@
   //
   // 例: https://floppy.io:8890/ で開く場合
   //
-  // ※ /api は使えない。MAMP PRO の httpd-ssl.conf に
-  //    ProxyPass /api/ http://127.0.0.1:5002/api/  (QuadTecho 用) が
-  //    サーバー全体に設定されており、ProxyPass は Alias より優先されるため。
+  // ※ ルートの /api は使えないことがある。サーバー全体に
+  //    ProxyPass /api/ が設定されていると、ProxyPass は Alias より
+  //    優先されるため横取りされる。そのため /floppy_io/api を使う。
   var MAMP_PRO_HOSTS = ['floppy.io']
 
   // --- MAMP PRO (推奨) ---
