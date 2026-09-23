@@ -162,237 +162,10 @@ a {
 /* ------------------------------------------------------------------
    モバイル最適化（昔の Twitter 風のまま使いやすくする）
    ------------------------------------------------------------------ */
-@media (max-width: 700px) {
-  /* --- トップバー: ロゴ + アカウントを 1 段目、ナビはハンバーガーで開閉 --- */
-  .topbar-inner {
-    flex-wrap: wrap;
-    row-gap: 0;
-    padding: 8px 12px;
-  }
 
-  .hamburger {
-    display: inline-flex;
-  }
-
-  .logo {
-    font-size: 20px;
-    margin-right: auto;
-  }
-
-  .topbar-user {
-    margin-left: 0;
-    gap: 10px;
-  }
-
-  .nav {
-    display: none;
-    order: 5;
-    width: 100%;
-    flex-direction: column;
-    gap: 0;
-    margin-top: 8px;
-    padding-top: 4px;
-    border-top: 1px solid rgba(0, 0, 0, 0.08);
-  }
-
-  .nav.open {
-    display: flex;
-  }
-
-  .nav .nav-link {
-    padding: 12px 4px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  }
-
-  .nav .nav-link:last-child {
-    border-bottom: none;
-  }
-
-  /* --- 1 カラム化 --- */
-  .page {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    padding: 12px 10px 40px;
-  }
-
-  .sidebar {
-    position: static;
-  }
-
-  /* プロフィールページではヘッダーと重複するのでサイドバーを隠す */
-  .page-profile .sidebar {
-    display: none;
-  }
-
-  /* --- サイドバーのプロフィールを横並びのコンパクト表示に --- */
-  .profile-card {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
-    padding: 10px;
-  }
-
-  .profile-avatar {
-    width: 48px;
-    height: 48px;
-  }
-
-  .profile-meta {
-    flex: 1 1 auto;
-  }
-
-  .profile-name {
-    margin-top: 0;
-    font-size: 15px;
-  }
-
-  .profile-bio {
-    flex: 1 1 100%;
-    margin: 0;
-    font-size: 12px;
-  }
-
-  .profile-stats {
-    flex: 1 1 100%;
-    justify-content: space-between;
-    gap: 10px;
-    margin-top: 2px;
-  }
-
-  .sidebar-note {
-    margin-top: 8px;
-  }
-
-  /* --- 投稿フォーム --- */
-  .composer {
-    padding: 10px;
-  }
-
-  .composer-title {
-    font-size: 16px;
-  }
-
-  .composer-row {
-    display: block;
-  }
-
-  .composer-row .link-btn {
-    display: inline-block;
-    margin-bottom: 10px;
-  }
-
-  .composer-row .spacer {
-    display: none;
-  }
-
-  .composer-row .btn-primary {
-    width: 100%;
-  }
-
-  /* --- タップしやすいボタン --- */
-  .btn {
-    min-height: 40px;
-    padding: 8px 16px;
-  }
-
-  .link-btn {
-    padding: 4px 0;
-  }
-
-  /* --- タイムライン --- */
-  .post {
-    gap: 8px;
-    padding: 10px;
-  }
-
-  .post-pixel {
-    width: 40px;
-    height: 40px;
-  }
-
-  .post-text {
-    font-size: 15px;
-  }
-
-  .post-bytes {
-    flex: 1 1 100%;
-    margin-left: 0;
-    text-align: right;
-  }
-
-  .post-actions {
-    gap: 18px;
-    margin-top: 2px;
-  }
-
-  /* --- プロフィールページ --- */
-  .profile-header {
-    gap: 12px;
-    padding: 12px;
-  }
-
-  .profile-header-avatar {
-    width: 64px;
-    height: 64px;
-  }
-
-  .profile-header-name {
-    font-size: 19px;
-  }
-
-  .profile-header-stats {
-    gap: 14px;
-  }
-
-  /* --- 設定 / ヘルプ / 認証 --- */
-  .panel {
-    padding: 12px;
-  }
-
-  .auth-panel {
-    max-width: none;
-  }
-
-  /* --- ドット絵エディタ --- */
-  .pixel-editor {
-    padding: 8px;
-  }
-
-  .swatch {
-    width: 26px;
-    height: 26px;
-  }
-
-  /* --- モーダル --- */
-  .modal-overlay {
-    padding: 12px;
-  }
-
-  .modal-window {
-    max-width: 100%;
-  }
-}
 
 /* かなり狭い端末向けの微調整 */
-@media (max-width: 380px) {
-  .logo {
-    font-size: 18px;
-  }
 
-  .nav-link {
-    font-size: 13px;
-  }
-
-  .post-pixel {
-    width: 36px;
-    height: 36px;
-  }
-
-  .profile-stats {
-    font-size: 11px;
-  }
-}
 
 .content {
   min-width: 0;
@@ -482,9 +255,13 @@ a {
 
 .sidebar-note {
   margin-top: 10px;
+  padding: 6px 8px;
   text-align: center;
   font-size: 11px;
   color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
 }
 
 /* 未ログイン時のサイドバー */
@@ -1336,4 +1113,235 @@ textarea.input {
    ------------------------------------------------------------------ */
 .spacer {
   flex: 1 1 auto;
+}
+
+@media (max-width: 700px) {
+  /* --- トップバー: ロゴ + アカウントを 1 段目、ナビはハンバーガーで開閉 --- */
+  .topbar-inner {
+    flex-wrap: wrap;
+    row-gap: 0;
+    padding: 8px 12px;
+  }
+
+  .hamburger {
+    display: inline-flex;
+  }
+
+  .logo {
+    font-size: 20px;
+    margin-right: auto;
+  }
+
+  .topbar-user {
+    margin-left: 0;
+    gap: 10px;
+  }
+
+  .nav {
+    display: none;
+    order: 5;
+    width: 100%;
+    flex-direction: column;
+    gap: 0;
+    margin-top: 8px;
+    padding-top: 4px;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+  }
+
+  .nav.open {
+    display: flex;
+  }
+
+  .nav .nav-link {
+    padding: 12px 4px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  .nav .nav-link:last-child {
+    border-bottom: none;
+  }
+
+  /* --- 1 カラム化 --- */
+  .page {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px 10px 40px;
+  }
+
+  .sidebar {
+    position: static;
+  }
+
+  /* プロフィールページではヘッダーと重複するのでサイドバーを隠す */
+  .page-profile .sidebar {
+    display: none;
+  }
+
+  /* --- サイドバーのプロフィールを横並びのコンパクト表示に --- */
+  .profile-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .profile-avatar {
+    width: 48px;
+    height: 48px;
+  }
+
+  .profile-meta {
+    flex: 1 1 auto;
+  }
+
+  .profile-name {
+    margin-top: 0;
+    font-size: 15px;
+  }
+
+  .profile-bio {
+    flex: 1 1 100%;
+    margin: 0;
+    font-size: 12px;
+  }
+
+  .profile-stats {
+    flex: 1 1 100%;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 2px;
+  }
+
+  .sidebar-note {
+    margin-top: 8px;
+  }
+
+  /* --- 投稿フォーム --- */
+  .composer {
+    padding: 10px;
+  }
+
+  .composer-title {
+    font-size: 16px;
+  }
+
+  .composer-row {
+    display: block;
+  }
+
+  .composer-row .link-btn {
+    display: inline-block;
+    margin-bottom: 10px;
+  }
+
+  .composer-row .spacer {
+    display: none;
+  }
+
+  .composer-row .btn-primary {
+    width: 100%;
+  }
+
+  /* --- タップしやすいボタン --- */
+  .btn {
+    min-height: 40px;
+    padding: 8px 16px;
+  }
+
+  .link-btn {
+    padding: 4px 0;
+  }
+
+  /* --- タイムライン --- */
+  .post {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .post-pixel {
+    width: 40px;
+    height: 40px;
+  }
+
+  .post-text {
+    font-size: 15px;
+  }
+
+  .post-bytes {
+    flex: 1 1 100%;
+    margin-left: 0;
+    text-align: right;
+  }
+
+  .post-actions {
+    gap: 18px;
+    margin-top: 2px;
+  }
+
+  /* --- プロフィールページ --- */
+  .profile-header {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .profile-header-avatar {
+    width: 64px;
+    height: 64px;
+  }
+
+  .profile-header-name {
+    font-size: 19px;
+  }
+
+  .profile-header-stats {
+    gap: 14px;
+  }
+
+  /* --- 設定 / ヘルプ / 認証 --- */
+  .panel {
+    padding: 12px;
+  }
+
+  .auth-panel {
+    max-width: none;
+  }
+
+  /* --- ドット絵エディタ --- */
+  .pixel-editor {
+    padding: 8px;
+  }
+
+  .swatch {
+    width: 26px;
+    height: 26px;
+  }
+
+  /* --- モーダル --- */
+  .modal-overlay {
+    padding: 12px;
+  }
+
+  .modal-window {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 380px) {
+  .logo {
+    font-size: 18px;
+  }
+
+  .nav-link {
+    font-size: 13px;
+  }
+
+  .post-pixel {
+    width: 36px;
+    height: 36px;
+  }
+
+  .profile-stats {
+    font-size: 11px;
+  }
 }
