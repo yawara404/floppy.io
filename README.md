@@ -2,6 +2,8 @@
 
 **1.44MB しか使えない静寂のレトロ SNS**
 
+👉 **公開サイト: <https://music.wawa-app.me/floppy.io/>**
+
 「現代の Web はリソースを消費しすぎている」というアンチテーゼから生まれた、レトロ
 コンピューティング趣味全開のミニマル SNS。**1 投稿あたり**の容量上限はフロッピー
 ディスク 1 枚分 (**1.44MB = 1,474,560 Bytes**) で、1 投稿＝フロッピー 1 枚という
@@ -15,18 +17,21 @@
 
 ---
 
-## 公開
+## 公開サイト
 
-| 種類 | URL |
+👉 **<https://music.wawa-app.me/floppy.io/>**
+
+Cloudflare Tunnel 経由で公開しています。トンネルは Host を保ったままローカルの
+Apache へ転送するため、Apache の該当 vhost 内で `/floppy.io/` を配信しています。
+実体は `~/Quadtecho/floppy.io/` からのシンボリックリンクです（Apache の設定変更なしで公開できる）。
+
+ローカルでの確認方法（ホスト名・ポートはお使いの環境に合わせてください）:
+
+| 種類 | 場所 |
 | --- | --- |
-| 公開サイト（Cloudflare Tunnel） | `<公開ホスト>/floppy.io/` |
-| ローカル（MAMP PRO） | <http://floppy.io:8080/> |
-| ローカル（Live Server） | <http://localhost:5500/> |
-| DB 管理（Adminer） | <http://floppy.io:8080/floppy_io/db/> |
-
-Cloudflare Tunnel は `<公開ホスト>` の Host を保ったまま `localhost:8888` へ
-転送するため、Apache の `<公開ホスト>` vhost 内で `/floppy.io/` を配信しています。
-実体は `~/Quadtecho/floppy.io/` からのシンボリックリンクです（設定変更なしで公開できる）。
+| MAMP PRO | Apache のホスト（例: `floppy.io`）のルート |
+| Live Server | `frontend/dist` を配信 |
+| DB 管理（Adminer） | ローカル URL の `/floppy_io/db/` |
 
 ```text
 ~/Quadtecho/floppy.io/
@@ -168,7 +173,7 @@ Live Server でもそのまま動きます。
 
 ```bash
 # 例: PHP 内蔵サーバーで使う場合
-FLOPPY_YOUTUBE_API_KEY=AIza... php -S localhost:8000
+FLOPPY_YOUTUBE_API_KEY=AIza... php -S <ホスト>:<ポート>
 ```
 
 - 取得結果（`youtube_id` / `youtube_title` / `youtube_thumbnail`）は投稿行に保存されます。
@@ -267,7 +272,7 @@ MAMP の Apache は `:8888`、MySQL は `:8889`（`root` / `root`）で動いて
 
 5. **ブラウザで開く**
 
-   👉 <http://localhost:8888/floppy_io/>
+   👉 `<ローカル URL>/floppy_io/`
 
 ---
 
@@ -315,7 +320,7 @@ Alias /floppy_io/uploads ~/floppy_io/backend/uploads
 
 > **⚠️ `/api` というパスは使えません。**
 > MAMP PRO の `httpd-ssl.conf` にはサーバー全体に
-> `ProxyPass /api/ http://127.0.0.1:5002/api/`（QuadTecho 用の Flask）が
+> `ProxyPass /api/ http://127.0.0.1:<Flask のポート>/api/`（別プロジェクト用の Flask）が
 > 設定されており、**ProxyPass は Alias より優先される**ため、
 > `/api` に Alias を張っても Flask に横取りされます。
 > そのため `/floppy_io/api` という衝突しないパスを使います。
@@ -339,7 +344,7 @@ MAMP PRO の MySQL は無料版とは**別のデータディレクトリ**を使
 **方法 A: phpMyAdmin を使う**
 
 1. MAMP PRO のメニューから phpMyAdmin を開く
-   （<http://localhost:8888/phpMyAdmin6/>）
+   （MAMP PRO のメニューから開けます）
 2. `root` / `root` でログイン
 3. 「インポート」→ `~/floppy_io/database/schema.sql` を選択 → 実行
 
@@ -380,20 +385,20 @@ npm run build
 
 #### 6. ブラウザで開く
 
-👉 **<https://floppy.io:8890/>**
+👉 **`https://<ホスト>:<SSL ポート>/`**
 
 - MAMP PRO は既定で **HTTP(8888) → HTTPS(8890) にリダイレクト**します。
 - 自己署名証明書の警告が出たら「詳細設定」→「アクセスする」で進んでください。
-- 警告を消したい場合はホストの **SSL チェックを外す**と `http://floppy.io:8888/`
+- 警告を消したい場合はホストの **SSL チェックを外す**と `http://<ホスト>:<ポート>/`
   で開けます（その場合は `config.js` の変更は不要です。ホスト名で判定しています）。
 
 #### 7. 動作確認チェックリスト
 
 | 確認 | 期待する結果 |
 | --- | --- |
-| `https://floppy.io:8890/` | サイトが表示される |
-| `https://floppy.io:8890/floppy_io/api/posts.php` | `{"posts":[...]}` が返る |
-| `https://floppy.io:8890/floppy_io/uploads/` | 403（Alias が効いていれば 404 ではなく 403） |
+| `https://<ホスト>:<SSL ポート>/` | サイトが表示される |
+| `.../floppy_io/api/posts.php` | `{"posts":[...]}` が返る |
+| `.../floppy_io/uploads/` | 403（Alias が効いていれば 404 ではなく 403） |
 | `floppy` / `floppy` でログイン | 成功する |
 | 投稿・画像添付 | できる |
 | YouTube 埋め込み | 再生できる（IP アドレスではないため） |
@@ -414,7 +419,7 @@ npm run build
 > Apache 8888 / MySQL 8889 / ソケットパスが丸被りします。
 >
 > 無料版 MAMP を使う場合は、MAMP PRO を Stop すれば従来どおり
-> <http://localhost:8888/floppy_io/> で動きます。
+> ローカル URL の `/floppy_io/` で動きます。
 
 ---
 
@@ -436,9 +441,9 @@ API だけ MAMP の PHP を直接呼びます（CORS は許可済み）。
    }
    ```
 
-4. 👉 <http://localhost:5500/>
+4. Live Server が表示する URL を開く
 
-> **`127.0.0.1:5500` ではなく `localhost:5500` で開いてください。**
+> **IP アドレスではなくホスト名（`localhost`）で開いてください。**
 > YouTube は IP アドレスからの埋め込みを拒否するため、`127.0.0.1` で開くと
 > 動画が「この動画は再生できません」になります（Live Server の既定ホストは
 > `127.0.0.1` なので、上記の `host` 設定で `localhost` に変えています）。
@@ -454,7 +459,7 @@ API だけ MAMP の PHP を直接呼びます（CORS は許可済み）。
 ```bash
 # ターミナル 1: PHP API
 cd backend
-php -S localhost:8000
+php -S <ホスト>:<ポート>
 
 # ターミナル 2: Vite
 cd frontend
@@ -462,14 +467,14 @@ npm install
 npm run dev
 ```
 
-ブラウザで <http://localhost:5173> を開いてください。`/api/*` へのリクエストは
-自動的に `http://localhost:8000` へプロキシされます。
+ブラウザで Vite が表示する URL を開いてください。`/api/*` へのリクエストは
+自動的に PHP サーバーへプロキシされます。
 
 > `php -S` を素の MySQL（`:3306` / `root` / パスワードなし）で使う場合は
 > 環境変数で上書きできます。
 >
 > ```bash
-> FLOPPY_DB_PORT=3306 FLOPPY_DB_PASS= php -S localhost:8000
+> FLOPPY_DB_PORT=3306 FLOPPY_DB_PASS= php -S <ホスト>:<ポート>
 > ```
 
 ### 4. 本番ビルド
@@ -485,7 +490,7 @@ npm run build      # dist/ に出力
 
 `frontend/public/config.js` がページの配信元に応じて API のベース URL を
 自動で切り替えます（MAMP → 同一オリジンの `/floppy_io/api`、Live Server →
-`http://localhost:8888/floppy_io/api`、Vite → `/api`）。ポートや公開パスを
+ローカルの `floppy_io/api`、Vite → `/api`）。ポートや公開パスを
 変えた場合はこのファイルの `MAMP_ORIGIN` / `MAMP_API_PATH` を書き換えて
 再ビルドしてください。
 
@@ -509,12 +514,12 @@ npm run build      # dist/ に出力
 
 ### 1. Web 画面（Adminer）
 
-👉 **<http://floppy.io:8080/floppy_io/db/>**
+👉 **ローカル URL の `/floppy_io/db/`**
 
 - ログイン画面が出たら、`サーバ: localhost`（空欄でも可）/ `ユーザー名: root` /
   `パスワード: root`（何でも通ります）/ `データベース: floppy_io` で入ります。
 - 事前入力して開くなら
-  <http://floppy.io:8080/floppy_io/db/?username=root&db=floppy_io>
+  ローカル URL の `/floppy_io/db/?username=root&db=floppy_io`
 - テーブルの閲覧・編集・SQL 実行ができます。
 - 接続先は `backend/config/database.php` と同じ（MAMP / MAMP PRO の
   MySQL は TCP 無効のことがあるため `localhost` = unix ソケットを使用）。
@@ -565,7 +570,7 @@ FLOPPY_DB_SOCKET=/path/to/mysql.sock ./tools/db.sh "SHOW TABLES;"
 - 画像のバイト数も 1 投稿の容量（1.44MB）に含まれます。超える場合は 403 で拒否され、
   保存済みの一時ファイルも破棄されます。
 - 投稿を削除（フォーマット）すると画像ファイルも削除されます。
-- 公開 URL は `http://localhost:8888/floppy_io/uploads/<ファイル名>` で、
+- 公開 URL は `<ローカル URL>/floppy_io/uploads/<ファイル名>` で、
   API のレスポンスに `image_url` として含まれます。
 
 ## 設計メモ / 拡張ポイント
