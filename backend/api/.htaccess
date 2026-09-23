@@ -1,0 +1,10 @@
+# Bearer トークン (Authorization ヘッダ) を PHP に渡す
+# MAMP の Apache は CGI/FastCGI 経由のため、この指定が無いと
+# Authorization ヘッダが PHP から見えなくなる。
+CGIPassAuth On
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTP:Authorization} .
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>

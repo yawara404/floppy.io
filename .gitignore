@@ -1,0 +1,25 @@
+# Node
+frontend/node_modules/
+frontend/dist/
+npm-debug.log*
+
+# 環境変数
+.env
+.env.local
+
+# DB のダンプ（パスワードハッシュを含むためコミットしない）
+database/floppy_io.sql
+
+# アップロードされた実ファイル（backend/uploads/.gitignore は残す）
+backend/uploads/*
+!backend/uploads/.gitignore
+
+# OS
+.DS_Store
+
+# エディタ
+.vscode/
+.idea/
+
+# ローカル専用の設定（API キー等）
+backend/config/*.local.php

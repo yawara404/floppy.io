@@ -1,0 +1,2 @@
+# Adminer 本体（サードパーティ）は tools/fetch-adminer.sh で再取得できます
+adminer.php
