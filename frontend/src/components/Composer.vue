@@ -24,10 +24,20 @@ const imagePreview = ref('')
 const imageBytes = ref(0)
 const imageError = ref('')
 
+// 添付フロッピーファイル（バイト数も容量に含める）
+const floppyInput = ref(null)
+const floppyFile = ref(null)
+const floppyBytes = ref(0)
+const floppyError = ref('')
+
 // 容量制限は「1 投稿あたり 1.44MB」。
 // メーターは、いま書いている投稿の消費バイト数（本文 + ドット絵 256 + 画像）を表示する。
 const draftBytes = computed(
-  () => new TextEncoder().encode(text.value).length + PIXEL_BYTES + imageBytes.value,
+  () =>
+    new TextEncoder().encode(text.value).length +
+    PIXEL_BYTES +
+    imageBytes.value +
+    floppyBytes.value,
 )
 const overLimit = computed(() => draftBytes.value > DISK_LIMIT)
 
@@ -57,6 +67,28 @@ function onFileChange(event) {
   imagePreview.value = URL.createObjectURL(file)
 }
 
+function onFloppyChange(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  floppyError.value = ''
+
+  if (file.size > DISK_LIMIT) {
+    floppyError.value = 'フロッピーファイルは 1.44MB 以内にしてください。'
+    return
+  }
+
+  floppyFile.value = file
+  floppyBytes.value = file.size
+  error.value = ''
+}
+
+function clearFloppy() {
+  floppyFile.value = null
+  floppyBytes.value = 0
+  if (floppyInput.value) floppyInput.value.value = ''
+}
+
 function clearImage() {
   if (imagePreview.value) URL.revokeObjectURL(imagePreview.value)
   imageFile.value = null
@@ -68,8 +100,13 @@ function clearImage() {
 async function submit() {
   error.value = ''
 
-  if (!text.value.trim() && pixelData.value === BLANK_PIXEL && !imageFile.value) {
-    error.value = '本文・ドット絵・画像のいずれかを入力してください。'
+  if (
+    !text.value.trim() &&
+    pixelData.value === BLANK_PIXEL &&
+    !imageFile.value &&
+    !floppyFile.value
+  ) {
+    error.value = '本文・ドット絵・画像・フロッピーファイルのいずれかを入力してください。'
     return
   }
 
@@ -82,11 +119,12 @@ async function submit() {
   try {
     let data
 
-    if (imageFile.value) {
+    if (imageFile.value || floppyFile.value) {
       const form = new FormData()
       form.append('text', text.value)
       form.append('pixel_data', pixelData.value)
-      form.append('image', imageFile.value)
+      if (imageFile.value) form.append('image', imageFile.value)
+      if (floppyFile.value) form.append('floppy', floppyFile.value)
       data = await apiUpload('/posts.php', form)
     } else {
       data = await apiPost('/posts.php', {
@@ -99,6 +137,7 @@ async function submit() {
     pixelData.value = BLANK_PIXEL
     showEditor.value = false
     clearImage()
+    clearFloppy()
     await refreshUser()
     emit('posted', data.post)
   } catch (e) {
@@ -135,6 +174,10 @@ onBeforeUnmount(() => {
       {{ imageError }}
     </p>
 
+    <p v-if="floppyError" class="msg msg-error" style="margin: 10px 0 0">
+      {{ floppyError }}
+    </p>
+
     <div v-if="imagePreview" class="image-preview">
       <img :src="imagePreview" alt="添付画像のプレビュー" />
       <button
@@ -157,6 +200,14 @@ onBeforeUnmount(() => {
       </button>
 
       <label class="link-btn" for="post-image">🖼 画像を添付</label>
+      <label class="link-btn" for="post-floppy">💾 フロッピーを添付</label>
+      <input
+        id="post-floppy"
+        ref="floppyInput"
+        class="image-input"
+        type="file"
+        @change="onFloppyChange"
+      />
       <input
         id="post-image"
         ref="fileInput"
@@ -168,6 +219,17 @@ onBeforeUnmount(() => {
       <span v-if="imageBytes" class="image-meta">
         {{ fmt(imageBytes) }} bytes
       </span>
+      <span v-if="floppyFile" class="image-meta">
+        💾 {{ floppyFile.name }} · {{ fmt(floppyBytes) }} bytes
+      </span>
+      <button
+        v-if="floppyFile"
+        type="button"
+        class="link-btn danger"
+        @click="clearFloppy"
+      >
+        ✕ 外す
+      </button>
 
       <span class="spacer"></span>
       <button

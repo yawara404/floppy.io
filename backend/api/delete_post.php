@@ -23,18 +23,24 @@ if ($method === 'POST' || $method === 'DELETE') {
     }
 
     $pdo  = db();
-    $stmt = $pdo->prepare('SELECT image_path FROM posts WHERE id = ? AND user_id = ?');
+    $stmt = $pdo->prepare(
+        'SELECT image_path, floppy_path FROM posts WHERE id = ? AND user_id = ?'
+    );
     $stmt->execute([$id, $user['id']]);
-    $imagePath = $stmt->fetchColumn();
+    $row = $stmt->fetch();
 
-    if ($imagePath === false) {
+    if ($row === false) {
         respond_error('投稿が見つかりません。', 404);
     }
+
+    $imagePath  = (string) $row['image_path'];
+    $floppyPath = (string) $row['floppy_path'];
 
     $stmt = $pdo->prepare('DELETE FROM posts WHERE id = ? AND user_id = ?');
     $stmt->execute([$id, $user['id']]);
 
-    delete_uploaded_image(is_string($imagePath) ? $imagePath : null);
+    delete_uploaded_image($imagePath);
+    delete_uploaded_image($floppyPath);
 
     respond_json(['deleted' => $id]);
 }

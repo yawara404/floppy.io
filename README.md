@@ -168,7 +168,7 @@ floppy_io/
 | `POST` | `/api/change_password.php` | パスワード変更（要ログイン） |
 | `GET`  | `/api/user.php?username=floppy` | プロフィール＋その人の投稿 |
 | `GET`  | `/api/posts.php[?username=floppy][&q=キーワード]` | 投稿一覧（新しい順 / 検索） |
-| `POST` | `/api/posts.php` | 新規投稿 `{ text, pixel_data }` または `multipart/form-data`（要ログイン / 容量判定） |
+| `POST` | `/api/posts.php` | 新規投稿 `{ text, pixel_data }` / `multipart/form-data`（`image` `floppy` 添付可・要ログイン） |
 | `POST` | `/api/delete_post.php` | 自分の投稿を削除 `{ id }`（要ログイン） |
 | `POST` | `/api/like.php` | いいねの付け外し `{ id }`（要ログイン・トグル） |
 | `GET`  | `/api/disk_usage.php[?username=floppy]` | 1 投稿あたりの上限 / 合計（参考値） |
@@ -190,6 +190,15 @@ floppy_io/
 - プロフィール画像も投稿の容量制限とは別枠です。
 - 保存済みの全投稿の合計は `GET /api/disk_usage.php` の `total_bytes` で確認できます
   （参考値・制限対象ではありません）。
+
+## フロッピーファイル投稿
+
+- 投稿に**ファイルを添付**できます（投稿フォームの「💾 フロッピーを添付」）。
+- ファイルはそのまま `backend/uploads/` に保存し、**バイト数を 1 投稿の容量（1.44MB）
+  に加算**します。つまり 1.44MB のフロッピーイメージなら 1 投稿をほぼ使い切ります。
+- 実体は実行されないよう常に `.bin` として保存し、元のファイル名は DB に保持して
+  投稿カードの「💾 ファイル名 / n bytes をダウンロード」からダウンロードできます。
+- 投稿を削除すると添付ファイルも削除されます。
 
 ## いいね
 

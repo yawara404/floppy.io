@@ -24,10 +24,11 @@ function like_escape(string $value): string
     return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
 }
 
-/** 投稿行に画像 URL を付与する */
+/** 投稿行に画像 / フロッピーファイルの URL を付与する */
 function with_image_url(array $row): array
 {
-    $row['image_url'] = post_image_url($row);
+    $row['image_url']  = post_image_url($row);
+    $row['floppy_url'] = post_floppy_url($row);
 
     return $row;
 }
@@ -46,6 +47,9 @@ const POST_COLUMNS = 'p.id,
             p.youtube_id,
             p.youtube_title,
             p.youtube_thumbnail,
+            p.floppy_path,
+            p.floppy_name,
+            p.floppy_bytes,
             p.text_bytes,
             p.pixel_bytes,
             p.total_bytes,
@@ -119,24 +123,37 @@ if ($method === 'POST') {
 
     $hasImage = (int) ($upload['bytes'] ?? 0) > 0;
 
+    // フロッピーファイル (任意)
+    $floppy = ['error' => null, 'bytes' => 0];
+    if ($isMultipart && isset($_FILES['floppy'])) {
+        $floppy = validate_uploaded_floppy($_FILES['floppy']);
+        if ($floppy['error'] !== null) {
+            respond_error($floppy['error'], 400);
+        }
+    }
+
+    $hasFloppy = (int) ($floppy['bytes'] ?? 0) > 0;
+
     // 本文もドット絵も画像も無いなら弾く
-    if ($text === '' && is_blank_pixel($pixel) && !$hasImage) {
-        respond_error('本文・ドット絵・画像のいずれかを入力してください。', 400);
+    if ($text === '' && is_blank_pixel($pixel) && !$hasImage && !$hasFloppy) {
+        respond_error('本文・ドット絵・画像・フロッピーファイルのいずれかを入力してください。', 400);
     }
 
     // UTF-8 バイト長 (strlen) で実消費量を計算する
     $textBytes  = strlen($text);
     $pixelBytes = strlen($pixel);          // 常に 256
-    $imageBytes = (int) ($upload['bytes'] ?? 0);
-    $totalBytes = $textBytes + $pixelBytes + $imageBytes;
+    $imageBytes  = (int) ($upload['bytes'] ?? 0);
+    $floppyBytes = (int) ($floppy['bytes'] ?? 0);
+    $totalBytes  = $textBytes + $pixelBytes + $imageBytes + $floppyBytes;
 
     // 容量制限は「1 投稿あたり」。累計では制限しない。
     // 1 投稿の合計 (本文 + ドット絵 + 画像) が 1.44MB を超える場合は HTTP 403。
     if ($totalBytes > DISK_LIMIT_BYTES) {
         respond_error(
-            '1 投稿あたりの容量上限（1.44MB）を超えています。本文・画像を軽くしてください。'
+            '1 投稿あたりの容量上限（1.44MB）を超えています。'
             . '（本文 ' . number_format($textBytes) . ' + ドット絵 ' . number_format($pixelBytes)
-            . ' + 画像 ' . number_format($imageBytes) . ' bytes）',
+            . ' + 画像 ' . number_format($imageBytes)
+            . ' + フロッピー ' . number_format($floppyBytes) . ' bytes）',
             403
         );
     }
@@ -147,6 +164,16 @@ if ($method === 'POST') {
         $imagePath = store_uploaded_image($upload);
         if ($imagePath === null) {
             respond_error('画像の保存に失敗しました。', 500);
+        }
+    }
+
+    // フロッピーファイルを保存する（容量チェック後）
+    $floppyPath = '';
+    if ($hasFloppy) {
+        $floppyPath = store_uploaded_floppy($floppy);
+        if ($floppyPath === null) {
+            delete_uploaded_image($imagePath);
+            respond_error('ファイルの保存に失敗しました。', 500);
         }
     }
 
@@ -161,8 +188,9 @@ if ($method === 'POST') {
             'INSERT INTO posts
                 (user_id, text, pixel_data, image_path, image_mime, image_bytes,
                  image_width, image_height, youtube_id, youtube_title, youtube_thumbnail,
+                 floppy_path, floppy_name, floppy_bytes,
                  text_bytes, pixel_bytes, total_bytes)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             $user['id'],
@@ -176,12 +204,16 @@ if ($method === 'POST') {
             $youtube['id'],
             $youtube['title'],
             $youtube['thumbnail'],
+            $floppyPath,
+            $hasFloppy ? $floppy['name'] : '',
+            $floppyBytes,
             $textBytes,
             $pixelBytes,
             $totalBytes,
         ]);
     } catch (Throwable $e) {
         delete_uploaded_image($imagePath);
+        delete_uploaded_image($floppyPath);
         respond_error('投稿の保存に失敗しました。', 500);
     }
 

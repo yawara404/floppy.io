@@ -73,6 +73,10 @@ CREATE TABLE IF NOT EXISTS posts (
   youtube_id        VARCHAR(32)  NOT NULL DEFAULT '',
   youtube_title     VARCHAR(255) NOT NULL DEFAULT '',
   youtube_thumbnail VARCHAR(255) NOT NULL DEFAULT '',
+  -- 添付フロッピーファイル (実ファイルは backend/uploads/ に保存)
+  floppy_path       VARCHAR(255) NOT NULL DEFAULT '',
+  floppy_name       VARCHAR(255) NOT NULL DEFAULT '',
+  floppy_bytes      INT UNSIGNED NOT NULL DEFAULT 0,
   text_bytes   INT UNSIGNED     NOT NULL DEFAULT 0,
   pixel_bytes  INT UNSIGNED     NOT NULL DEFAULT 256,
   total_bytes  INT UNSIGNED     NOT NULL DEFAULT 0,

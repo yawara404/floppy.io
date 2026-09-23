@@ -49,6 +49,9 @@ $stmt = $pdo->prepare(
             p.youtube_id,
             p.youtube_title,
             p.youtube_thumbnail,
+            p.floppy_path,
+            p.floppy_name,
+            p.floppy_bytes,
             p.text_bytes,
             p.pixel_bytes,
             p.total_bytes,
@@ -62,7 +65,8 @@ $stmt = $pdo->prepare(
 $stmt->execute([$row['id']]);
 
 $posts = array_map(static function (array $post): array {
-    $post['image_url'] = post_image_url($post);
+    $post['image_url']  = post_image_url($post);
+    $post['floppy_url'] = post_floppy_url($post);
 
     return $post;
 }, $stmt->fetchAll());

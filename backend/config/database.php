@@ -448,6 +448,85 @@ function post_image_url(array $row): ?string
         : null;
 }
 
+
+// ---------------------------------------------------------------------------
+// フロッピーファイル (添付ファイル)
+//
+// 画像と同じ uploads/ に保存するが、実行されないよう常に .bin として保存し、
+// 元のファイル名は DB (floppy_name) に保持する。
+// ---------------------------------------------------------------------------
+
+/** 添付フロッピーファイルの検証（画像判定なし・サイズのみ） */
+function validate_uploaded_floppy(array $file): array
+{
+    $error = $file['error'] ?? UPLOAD_ERR_NO_FILE;
+
+    if ($error === UPLOAD_ERR_NO_FILE) {
+        return ['error' => null, 'bytes' => 0];
+    }
+
+    if ($error !== UPLOAD_ERR_OK) {
+        $message = match ($error) {
+            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'ファイルが大きすぎます。',
+            UPLOAD_ERR_PARTIAL                        => 'アップロードが中断されました。',
+            UPLOAD_ERR_NO_TMP_DIR                     => '一時保存先が見つかりません。',
+            UPLOAD_ERR_CANT_WRITE                     => 'ファイルを書き込めませんでした。',
+            default                                   => 'ファイルのアップロードに失敗しました。',
+        };
+
+        return ['error' => $message];
+    }
+
+    $size = (int) ($file['size'] ?? 0);
+
+    if ($size <= 0) {
+        return ['error' => 'ファイルが空です。'];
+    }
+
+    if ($size > DISK_LIMIT_BYTES) {
+        return ['error' => 'フロッピーファイルは 1.44MB 以内にしてください。'];
+    }
+
+    // 元のファイル名（パス操作や制御文字を除去）
+    $name = basename(str_replace(['\\', "\0"], ['/', ''], (string) ($file['name'] ?? '')));
+    $name = mb_substr(trim($name), 0, 255);
+
+    return [
+        'error' => null,
+        'tmp'   => (string) $file['tmp_name'],
+        'bytes' => $size,
+        'name'  => $name !== '' ? $name : 'floppy.bin',
+    ];
+}
+
+/** 検証済みのフロッピーファイルを uploads/ に保存し、ファイル名を返す */
+function store_uploaded_floppy(array $validated): ?string
+{
+    $dir = upload_dir();
+
+    if (!is_dir($dir) && !@mkdir($dir, 0775, true)) {
+        return null;
+    }
+
+    // 実行可能な拡張子で配信されないよう、常に .bin として保存する
+    $name = bin2hex(random_bytes(16)) . '.bin';
+    $dest = $dir . '/' . $name;
+
+    if (!move_uploaded_file($validated['tmp'], $dest)) {
+        return null;
+    }
+
+    return $name;
+}
+
+/** 投稿行にフロッピーファイルの URL を付与する */
+function post_floppy_url(array $row): ?string
+{
+    return !empty($row['floppy_path'])
+        ? uploads_base_url() . '/' . rawurlencode($row['floppy_path'])
+        : null;
+}
+
 /** ユーザー行にプロフィール画像 URL を付与する */
 function user_avatar_url(array $row): ?string
 {

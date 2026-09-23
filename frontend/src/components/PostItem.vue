@@ -202,6 +202,22 @@ function fmtDate(s) {
         </button>
       </div>
 
+      <!-- 添付フロッピーファイル -->
+      <a
+        v-if="post.floppy_url"
+        class="post-floppy"
+        :href="post.floppy_url"
+        :download="post.floppy_name || 'floppy.bin'"
+      >
+        <span class="post-floppy-icon" aria-hidden="true">💾</span>
+        <span>
+          <span class="post-floppy-name">{{ post.floppy_name || 'floppy.bin' }}</span>
+          <span class="post-floppy-meta">
+            {{ (post.floppy_bytes || 0).toLocaleString('ja-JP') }} bytes をダウンロード
+          </span>
+        </span>
+      </a>
+
       <div v-else class="post-actions">
         <button
           type="button"

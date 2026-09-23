@@ -646,6 +646,44 @@ textarea.input {
   gap: 14px;
 }
 
+/* 添付フロッピーファイル */
+.post-floppy {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  margin: 2px 0 8px;
+  padding: 8px 10px;
+  background: #f5f8fa;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  text-decoration: none;
+}
+
+.post-floppy:hover {
+  background: #eaf6fb;
+}
+
+.post-floppy-icon {
+  flex: 0 0 auto;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.post-floppy-name {
+  display: block;
+  font-size: 13px;
+  color: var(--link);
+  word-break: break-all;
+}
+
+.post-floppy-meta {
+  display: block;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+
 /* 三点メニュー */
 .post-menu-btn {
   flex: 0 0 auto;
