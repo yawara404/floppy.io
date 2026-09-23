@@ -25,14 +25,6 @@ Cloudflare Tunnel 経由で公開しています。トンネルは Host を保�
 Apache へ転送するため、Apache の該当 vhost 内で `/floppy.io/` を配信しています。
 実体は `~/Quadtecho/floppy.io/` からのシンボリックリンクです（Apache の設定変更なしで公開できる）。
 
-ローカルでの確認方法（ホスト名・ポートはお使いの環境に合わせてください）:
-
-| 種類 | 場所 |
-| --- | --- |
-| MAMP PRO | Apache のホスト（例: `floppy.io`）のルート |
-| Live Server | `frontend/dist` を配信 |
-| DB 管理（Adminer） | ローカル URL の `/floppy_io/db/` |
-
 ```text
 ~/Quadtecho/floppy.io/
 ├── index.html, assets/, config.js, favicon.png  -> frontend/dist へのリンク
@@ -113,7 +105,7 @@ floppy_io/
 │   │   ├── main.js
 │   │   └── style.css               # 昔の Twitter 風テーマ
 │   ├── public/
-│   │   ├── config.js               # 実行時 API 接続先 (MAMP / Live Server 切替)
+│   │   ├── config.js               # 実行時 API 接続先（配信元に応じて切替）
 │   │   └── favicon.png             # 💾 をファビコン化したもの
 │   ├── index.html
 │   ├── vite.config.js              # 開発時 /api → :8000 プロキシ / 相対パス出力
@@ -132,8 +124,7 @@ floppy_io/
 | `#/help` | ヘルプ |
 | `#/login` / `#/register` | ログイン / 新規登録 |
 
-サーバー側のリライトが不要なハッシュ方式なので、MAMP の静的配信でも
-Live Server でもそのまま動きます。
+サーバー側のリライトが不要なハッシュ方式なので、静的配信でもそのまま動きます。
 
 ## アカウント
 
@@ -141,7 +132,7 @@ Live Server でもそのまま動きます。
   投稿はユーザーごとに分離されます。
 - パスワードは `password_hash()`（bcrypt）でハッシュ化して保存します。
 - 認証は **Bearer トークン**方式（`localStorage` に保持）です。Cookie を使わないため、
-  Live Server からのクロスオリジンでもそのまま動きます。
+  別オリジン（静的配信サーバーなど）からでもそのまま動きます。
 - プロフィールアイコンは **設定 → プロフィール画像** から画像に変更できます
   （未設定のときは、そのユーザーの最新投稿のドット絵 → フロッピーの絵 の順に使われます）。
 - デモアカウント: ユーザー名 `floppy` / パスワード `floppy`
@@ -163,32 +154,6 @@ Live Server でもそのまま動きます。
 - **YouTube Data API v3** の API キーを設定すると、`videos.list` から動画タイトルと
   サムネイルを取得して保存します。
 
-### API キーの設定
-
-1. [Google Cloud Console](https://console.cloud.google.com/) で「YouTube Data API v3」を有効化
-2. API キーを発行
-3. 次のいずれかで設定する
-   - `backend/config/youtube.php` の `YOUTUBE_API_KEY` に貼り付ける
-   - 環境変数 `FLOPPY_YOUTUBE_API_KEY` を設定する（優先されます）
-
-```bash
-# 例: PHP 内蔵サーバーで使う場合
-FLOPPY_YOUTUBE_API_KEY=AIza... php -S <ホスト>:<ポート>
-```
-
-- 取得結果（`youtube_id` / `youtube_title` / `youtube_thumbnail`）は投稿行に保存されます。
-- API 呼び出しに失敗しても投稿は成功します（タイトル無しの埋め込みになります）。
-- 埋め込みは**クリックするまで iframe を読み込まない**ので、タイムラインは軽いままです。
-- **`127.0.0.1` のような IP アドレスで開いたページでは埋め込みを再生できません**
-  （YouTube 側の制限で「この動画は再生できません」になります）。`localhost` で開いてください。
-  その場合は画面にも案内を表示し、埋め込みの下に「YouTube で見る」リンクも置いています。
-- **キーを後から設定した場合**、それ以前の投稿はタイトルが空のままです。次のコマンドで
-  まとめて取り直せます。
-
-  ```bash
-  php backend/tools/backfill_youtube.php
-  ```
-
 ## API 一覧
 
 | メソッド | エンドポイント | 説明 |
@@ -207,344 +172,6 @@ FLOPPY_YOUTUBE_API_KEY=AIza... php -S <ホスト>:<ポート>
 | `GET`  | `/api/disk_usage.php[?username=floppy]` | 1 投稿あたりの上限 / 合計（参考値） |
 
 | `GET`  | `/api/preview.php?id=123` | 埋め込み用プレビュー（メタ情報＋HTML スニペット） |
-
-## セットアップ
-
-### 0. 前提
-
-- PHP 8.x（PDO MySQL 拡張）
-- MySQL 8.x
-- Node.js 18+ / npm
-
----
-
-### A. MAMP で開く（推奨・最短）
-
-MAMP の Apache は `:8888`、MySQL は `:8889`（`root` / `root`）で動いている前提です。
-
-1. **MAMP で Apache と MySQL を起動する**
-   - MAMP アプリで「Start Servers」を押す（Apache / MySQL の両方）。
-
-2. **データベースを作成する**
-
-   ```bash
-   /Applications/MAMP/Library/bin/mysql80/bin/mysql \
-     -u root -proot --socket=/Applications/MAMP/tmp/mysql/mysql.sock \
-     < database/schema.sql
-   ```
-
-   > コマンドが無い場合は MAMP 同梱の phpMyAdmin から `database/schema.sql` を
-   > インポートしても同じです。
-
-3. **Apache に floppy.io の別名を登録する**
-
-   `/Applications/MAMP/conf/apache/httpd.conf` に以下を追記します
-   （本リポジトリでは設定済み）。
-
-   ```apache
-   Alias /floppy_io/api     ~/floppy_io/backend/api
-   Alias /floppy_io/uploads ~/floppy_io/backend/uploads
-   Alias /floppy_io         ~/floppy_io/frontend/dist
-
-   <Directory "~/floppy_io">
-       Options All
-       AllowOverride All
-       Require all granted
-   </Directory>
-   ```
-
-   - フロントは `frontend/dist`（Vite のビルド成果物）を静的配信
-   - PHP API は `/floppy_io/api/*` → `backend/api/*`
-   - ルートの `/api` は TuneDrop 用プロキシが使用中のため、あえて
-     `/floppy_io/api` に置いています。
-
-   変更後は Apache を再起動してください（MAMP アプリの「Stop」→「Start」、
-   または `sudo /Applications/MAMP/Library/bin/httpd -f
-   /Applications/MAMP/conf/apache/httpd.conf -k restart`）。
-
-4. **フロントをビルドする**
-
-   ```bash
-   cd frontend
-   npm install
-   npm run build
-   ```
-
-5. **ブラウザで開く**
-
-   👉 `<ローカル URL>/floppy_io/`
-
----
-
-### B. MAMP PRO で開く
-
-MAMP PRO は GUI でホスト（バーチャルホスト）を管理するため、無料版のように
-`httpd.conf` を直接編集しません。**ホストの設定画面に追記**します。
-
-前提として、MAMP PRO に `floppy.io` というホストを作ってあるものとします
-（ホスト名は何でも構いません。変えた場合は `frontend/public/config.js` の
-`MAMP_PRO_HOSTS` も合わせて変更して再ビルドしてください）。
-
-#### 1. ホストの DocumentRoot を設定する
-
-**Hosts → `floppy.io` → General**
-
-| 項目 | 値 |
-| --- | --- |
-| Host name | `floppy.io` |
-| Document root | `~/floppy_io/frontend/dist` |
-
-> `frontend/dist` は Vite のビルド成果物です。`npm run build` で生成されます。
-
-#### 2. PHP API と画像の Alias を追加する
-
-**同じホストの Apache タブ →「<VirtualHost> への追加パラメータ」**
-（英語 UI では "Additional parameters for `<VirtualHost>`"）に次を追記します。
-
-```apache
-Alias /floppy_io/api     ~/floppy_io/backend/api
-Alias /floppy_io/uploads ~/floppy_io/backend/uploads
-
-<Directory "~/floppy_io/backend">
-    Options Includes FollowSymLinks
-    AllowOverride All
-    Require all granted
-</Directory>
-```
-
-- `Alias /floppy_io/api` … PHP の API（`backend/api`）を公開
-- `Alias /floppy_io/uploads` … アップロード画像（`backend/uploads`）を公開
-- `AllowOverride All` … **必須**。`backend/api/.htaccess` の `CGIPassAuth On` が
-  効かないと、`Authorization` ヘッダが PHP に届かずログイン（Bearer トークン）が
-  動きません。
-
-> **⚠️ `/api` というパスは使えません。**
-> MAMP PRO の `httpd-ssl.conf` にはサーバー全体に
-> `ProxyPass /api/ http://127.0.0.1:<Flask のポート>/api/`（別プロジェクト用の Flask）が
-> 設定されており、**ProxyPass は Alias より優先される**ため、
-> `/api` に Alias を張っても Flask に横取りされます。
-> そのため `/floppy_io/api` という衝突しないパスを使います。
-
-追記したら **保存 → サーバーを再起動**（MAMP PRO の Stop → Start）。
-
-#### 3. ホスト名を解決させる
-
-MAMP PRO が `/etc/hosts` に `127.0.0.1 floppy.io` を自動で追記します
-（管理者パスワードを求められたら許可してください）。
-
-> `floppy.io` は実在するドメインなので、この追記が無いと**本物の公開サイトに
-> 飛んでしまいます**。心配な場合は `floppy.local` のようなホスト名に変えるのが
-> 安全です。
-
-#### 4. データベースを作成する
-
-MAMP PRO の MySQL は無料版とは**別のデータディレクトリ**を使うため、
-`floppy_io` データベースを改めて作成する必要があります。
-
-**方法 A: phpMyAdmin を使う**
-
-1. MAMP PRO のメニューから phpMyAdmin を開く
-   （MAMP PRO のメニューから開けます）
-2. `root` / `root` でログイン
-3. 「インポート」→ `~/floppy_io/database/schema.sql` を選択 → 実行
-
-**方法 B: コマンドライン**
-
-```bash
-/Applications/MAMP/Library/bin/mysql80/bin/mysql \
-  -u root -proot --socket=/Applications/MAMP/tmp/mysql/mysql.sock \
-  < ~/floppy_io/database/schema.sql
-```
-
-> MAMP PRO の MySQL は **TCP を無効化している**ことがあります
-> （`skip_networking=ON`）。その場合は `-h 127.0.0.1 -P 8889` ではなく
-> 上記のように `--socket` を使ってください。
-
-確認：
-
-```bash
-/Applications/MAMP/Library/bin/mysql80/bin/mysql -u root -proot \
-  --socket=/Applications/MAMP/tmp/mysql/mysql.sock \
-  -e "USE floppy_io; SHOW TABLES; SELECT id, username FROM users;"
-```
-
-`users` / `posts` / `api_tokens` とデモユーザー `floppy` が見えれば OK です。
-
-> アプリ側（`backend/config/database.php`）は **unix ソケット → TCP の順に試す**ので、
-> TCP が無効でも追加設定なしで接続できます。
-
-#### 5. フロントをビルドする
-
-```bash
-cd frontend
-npm install
-npm run build
-```
-
-> `frontend/public/config.js` を書き換えた場合も、この再ビルドが必要です。
-
-#### 6. ブラウザで開く
-
-👉 **`https://<ホスト>:<SSL ポート>/`**
-
-- MAMP PRO は既定で **HTTP(8888) → HTTPS(8890) にリダイレクト**します。
-- 自己署名証明書の警告が出たら「詳細設定」→「アクセスする」で進んでください。
-- 警告を消したい場合はホストの **SSL チェックを外す**と `http://<ホスト>:<ポート>/`
-  で開けます（その場合は `config.js` の変更は不要です。ホスト名で判定しています）。
-
-#### 7. 動作確認チェックリスト
-
-| 確認 | 期待する結果 |
-| --- | --- |
-| `https://<ホスト>:<SSL ポート>/` | サイトが表示される |
-| `.../floppy_io/api/posts.php` | `{"posts":[...]}` が返る |
-| `.../floppy_io/uploads/` | 403（Alias が効いていれば 404 ではなく 403） |
-| `floppy` / `floppy` でログイン | 成功する |
-| 投稿・画像添付 | できる |
-| YouTube 埋め込み | 再生できる（IP アドレスではないため） |
-
-#### 8. つまずきポイント
-
-| 症状 | 原因と対処 |
-| --- | --- |
-| `/floppy_io/api/posts.php` が **404** | Alias 未設定、または保存後の再起動忘れ |
-| `/api/posts.php` が **Flask の 404** を返す | MAMP PRO の ProxyPass に横取りされている。`/floppy_io/api` を使う |
-| API が **HTML のエラー**を返す | DB 未作成。手順 4 を実施 |
-| ログインが **401** になる | `<Directory>` の `AllowOverride All` 忘れ（`.htaccess` が効いていない） |
-| **403 Forbidden** | DocumentRoot が `frontend/dist` になっていない |
-| 「この動画は再生できません」 | `127.0.0.1` でアクセスしている。`floppy.io` で開く |
-| 8888 が繋がらない | **無料版 MAMP と同時起動している**。無料版を Stop する |
-
-> **無料版 MAMP と MAMP PRO は同時に起動しないでください。**
-> Apache 8888 / MySQL 8889 / ソケットパスが丸被りします。
->
-> 無料版 MAMP を使う場合は、MAMP PRO を Stop すれば従来どおり
-> ローカル URL の `/floppy_io/` で動きます。
-
----
-
-### C. VS Code の Live Server で開く
-
-Live Server は PHP を実行できないため、ビルド済みの `frontend/dist` を配信し、
-API だけ MAMP の PHP を直接呼びます（CORS は許可済み）。
-
-1. MAMP で Apache と MySQL を起動する（上記 A-1 / A-2 を済ませておく）。
-2. `frontend/dist` を最新にする（`cd frontend && npm run build`）。
-3. VS Code でこのフォルダを開き、**Live Server を再起動**する。
-   `.vscode/settings.json` で配信ルートとホストを設定してあります。
-
-   ```json
-   {
-     "liveServer.settings.root": "/frontend/dist",
-     "liveServer.settings.port": 5500,
-     "liveServer.settings.host": "localhost"
-   }
-   ```
-
-4. Live Server が表示する URL を開く
-
-> **IP アドレスではなくホスト名（`localhost`）で開いてください。**
-> YouTube は IP アドレスからの埋め込みを拒否するため、`127.0.0.1` で開くと
-> 動画が「この動画は再生できません」になります（Live Server の既定ホストは
-> `127.0.0.1` なので、上記の `host` 設定で `localhost` に変えています）。
-> もし IP アドレスで開いてしまった場合は、画面にも案内が表示されます。
-
-> `frontend/dist/index.html` を直接右クリック →「Open with Live Server」でも
-> 同じように開けます。
-
----
-
-### D. Vite 開発サーバーで開く（ホットリロード）
-
-```bash
-# ターミナル 1: PHP API
-cd backend
-php -S <ホスト>:<ポート>
-
-# ターミナル 2: Vite
-cd frontend
-npm install
-npm run dev
-```
-
-ブラウザで Vite が表示する URL を開いてください。`/api/*` へのリクエストは
-自動的に PHP サーバーへプロキシされます。
-
-> `php -S` を素の MySQL（`:3306` / `root` / パスワードなし）で使う場合は
-> 環境変数で上書きできます。
->
-> ```bash
-> FLOPPY_DB_PORT=3306 FLOPPY_DB_PASS= php -S <ホスト>:<ポート>
-> ```
-
-### 4. 本番ビルド
-
-```bash
-cd frontend
-npm run build      # dist/ に出力
-```
-
-`dist/` を静的ホスティングし、`/api/*` を PHP サーバーへリバースプロキシしてください。
-
-### API の接続先を変える
-
-`frontend/public/config.js` がページの配信元に応じて API のベース URL を
-自動で切り替えます（MAMP → 同一オリジンの `/floppy_io/api`、Live Server →
-ローカルの `floppy_io/api`、Vite → `/api`）。ポートや公開パスを
-変えた場合はこのファイルの `MAMP_ORIGIN` / `MAMP_API_PATH` を書き換えて
-再ビルドしてください。
-
-
-## データベースを操作する
-
-現在のデータのダンプは **`database/floppy_io.sql`**（スキーマ＋データ）にあります。
-復元するには:
-
-```bash
-./tools/db.sh < database/floppy_io.sql
-```
-
-> `database/floppy_io.sql` は **パスワードハッシュを含むため `.gitignore` で
-> コミット対象外**にしています（`database/schema.sql` は DDL のみでコミットされます）。
-> リポジトリにも含めたい場合は `.gitignore` から外してください。
-
-
-このフォルダの中から DB を直接いじれるように、**Adminer（Web 画面）** と
-**CLI ツール** を用意しています。
-
-### 1. Web 画面（Adminer）
-
-👉 **ローカル URL の `/floppy_io/db/`**
-
-- ログイン画面が出たら、`サーバ: localhost`（空欄でも可）/ `ユーザー名: root` /
-  `パスワード: root`（何でも通ります）/ `データベース: floppy_io` で入ります。
-- 事前入力して開くなら
-  ローカル URL の `/floppy_io/db/?username=root&db=floppy_io`
-- テーブルの閲覧・編集・SQL 実行ができます。
-- 接続先は `backend/config/database.php` と同じ（MAMP / MAMP PRO の
-  MySQL は TCP 無効のことがあるため `localhost` = unix ソケットを使用）。
-- 安全のため **127.0.0.1 / ::1 からのみ**アクセスできます。
-
-本体（`backend/db/adminer.php`）はサードパーティ製なので、`.gitignore` で除外し
-次のコマンドで取得し直せます。
-
-```bash
-./tools/fetch-adminer.sh
-```
-
-### 2. コマンドライン
-
-```bash
-./tools/db.sh                          # 対話シェル（SQL を直接入力）
-./tools/db.sh "SELECT * FROM users;"   # 1 クエリだけ実行
-./tools/db.sh < database/schema.sql    # SQL ファイルを流し込む
-```
-
-接続情報は環境変数で上書きできます。
-
-```bash
-FLOPPY_DB_SOCKET=/path/to/mysql.sock ./tools/db.sh "SHOW TABLES;"
-```
 
 ## 容量の考え方
 
@@ -578,9 +205,9 @@ FLOPPY_DB_SOCKET=/path/to/mysql.sock ./tools/db.sh "SHOW TABLES;"
 - **認証**: Bearer トークン方式。`api_tokens` テーブルにトークンを保存し、
   `backend/config/database.php` の `current_user()` / `require_user()` で判定します。
   投稿は `posts.user_id` でユーザーごとに分離されています。
-  - MAMP の Apache は CGI/FastCGI 経由のため、`backend/api/.htaccess` の
+  - Apache を CGI/FastCGI で運用する場合、`backend/api/.htaccess` の
     `CGIPassAuth On` が無いと `Authorization` ヘッダが PHP に届きません。
-  - Cookie を使わないので、Live Server のようなクロスオリジンでも動きます
+  - Cookie を使わないので、クロスオリジンでも動きます
     （CORS で `Authorization` を許可済み）。
 - **ルーティング**: 依存を増やさないため、`frontend/src/utils/router.js` に
   ハッシュ方式の小さなルーターを自前実装しています（サーバー側リライト不要）。
@@ -589,3 +216,10 @@ FLOPPY_DB_SOCKET=/path/to/mysql.sock ./tools/db.sh "SHOW TABLES;"
   `SUM(total_bytes)` で求まります。
 - **ドット絵パレット**: `backend/config/database.php` の `PIXEL_PALETTE` と
   `frontend/src/utils/pixel.js` の `PALETTE` は一致させてください。
+
+## 注意
+
+- 本リポジトリはオープンソースではありません。**セットアップ手順・内部運用情報は
+  含めていません**（ローカル環境の手順はリポジトリ外で管理しています）。
+- 画面はレトロな見た目を再現していますが、実装は現行の Web 標準に沿っています。
+- 公開サーバーとして運用する場合は、十分なセキュリティ設定を行った上で自己責任でお願いします。

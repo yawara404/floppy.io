@@ -23,3 +23,6 @@ backend/uploads/*
 
 # ローカル専用の設定（API キー等）
 backend/config/*.local.php
+
+# ローカル手順書（公開しない）
+/README.local.md
