@@ -1371,6 +1371,25 @@ textarea.input {
     text-align: right;
   }
 
+  /* 三点メニューは投稿の右上に固定（折り返しの影響を受けない） */
+  .post-head {
+    padding-right: 26px;
+  }
+
+  .post-menu-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    margin-left: 0;
+  }
+
+  /* メニューは右端に収める */
+  .post-menu {
+    top: 26px;
+    right: 0;
+    min-width: 170px;
+  }
+
   .post-actions {
     gap: 18px;
     margin-top: 2px;
