@@ -32,6 +32,9 @@ $stmt = $pdo->prepare(
             p.youtube_id,
             p.youtube_title,
             p.youtube_thumbnail,
+            p.floppy_path,
+            p.floppy_name,
+            p.floppy_bytes,
             p.total_bytes,
             p.created_at
        FROM posts p
@@ -91,6 +94,30 @@ if (($post['youtube_id'] ?? '') !== '') {
         . '<div style="font-size:11px;color:#404040">▶ ' . $youtubeTitle . '</div></div>';
 }
 
+// 添付フロッピーファイル (音声なら埋め込みプレイヤー、それ以外はダウンロードリンク)
+$floppyUrl  = post_floppy_url($post);
+$floppyHtml = '';
+
+if ($floppyUrl !== null) {
+    $floppyName  = htmlspecialchars((string) $post['floppy_name'], ENT_QUOTES, 'UTF-8');
+    $floppyBytes = number_format((int) $post['floppy_bytes']);
+    $floppyHref  = htmlspecialchars($floppyUrl, ENT_QUOTES, 'UTF-8');
+
+    if (floppy_kind((string) $post['floppy_name']) === 'audio') {
+        // 8bit 曲などの音楽プレイヤー
+        $floppyHtml = '<div style="margin:6px 0">'
+            . '<div style="font-size:11px;color:#404040">💾 ' . $floppyName
+            . ' &middot; ' . $floppyBytes . ' bytes</div>'
+            . '<audio controls preload="none" src="' . $floppyHref
+            . '" style="width:100%;max-width:320px;margin-top:4px"></audio></div>';
+    } else {
+        $floppyHtml = '<div style="margin:6px 0">'
+            . '<a href="' . $floppyHref
+            . '" style="font-size:11px;color:#0084b4">💾 ' . $floppyName
+            . ' &middot; ' . $floppyBytes . ' bytes をダウンロード</a></div>';
+    }
+}
+
 // 自己完結型の埋め込みカード HTML
 $html = <<<HTML
 <div style="font-family:'Courier New',monospace;background:#c0c0c0;border:2px solid;border-color:#ffffff #808080 #808080 #ffffff;padding:12px;max-width:340px;color:#000">
@@ -101,6 +128,7 @@ $html = <<<HTML
       <div style="margin:6px 0;white-space:pre-wrap;word-break:break-word">{$text}</div>
       {$imageHtml}
       {$youtubeHtml}
+      {$floppyHtml}
       <div style="font-size:11px;color:#404040">{$shown} (@{$name}) · {$bytes} bytes · {$date}</div>
     </div>
   </div>
@@ -121,6 +149,10 @@ respond_json([
     'youtube_id'   => (string) $post['youtube_id'],
     'youtube_title' => (string) $post['youtube_title'],
     'youtube_thumbnail' => (string) $post['youtube_thumbnail'],
+    'floppy_url'   => $floppyUrl,
+    'floppy_name'  => (string) $post['floppy_name'],
+    'floppy_bytes' => (int) $post['floppy_bytes'],
+    'floppy_kind'  => $post['floppy_name'] !== '' ? floppy_kind((string) $post['floppy_name']) : null,
     'total_bytes'  => (int) $post['total_bytes'],
     'created_at'   => $post['created_at'],
     'url'          => $base . '/api/preview.php?id=' . $post['id'],

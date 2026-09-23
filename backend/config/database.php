@@ -456,6 +456,38 @@ function post_image_url(array $row): ?string
 // 元のファイル名は DB (floppy_name) に保持する。
 // ---------------------------------------------------------------------------
 
+
+/**
+ * ブラウザでそのまま再生できる音声ファイルの拡張子。
+ * (8bit 曲でも mp3 / ogg / wav などに書き出したものは再生できる)
+ */
+const PLAYABLE_AUDIO_EXT = [
+    'mp3', 'wav', 'ogg', 'oga', 'opus', 'm4a', 'aac', 'flac', 'weba',
+];
+
+/** 添付ファイルの種別: 'audio'（再生可） / 'file' */
+function floppy_kind(string $name): string
+{
+    $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+
+    return in_array($ext, PLAYABLE_AUDIO_EXT, true) ? 'audio' : 'file';
+}
+
+/** 添付ファイルを配信するときの Content-Type */
+function floppy_content_type(string $name): string
+{
+    return match (strtolower(pathinfo($name, PATHINFO_EXTENSION))) {
+        'mp3'          => 'audio/mpeg',
+        'wav'          => 'audio/wav',
+        'ogg', 'oga'   => 'audio/ogg',
+        'opus'         => 'audio/ogg',
+        'm4a', 'aac'   => 'audio/mp4',
+        'flac'         => 'audio/flac',
+        'weba'         => 'audio/webm',
+        default        => 'application/octet-stream',
+    };
+}
+
 /** 添付フロッピーファイルの検証（画像判定なし・サイズのみ） */
 function validate_uploaded_floppy(array $file): array
 {
@@ -508,8 +540,15 @@ function store_uploaded_floppy(array $validated): ?string
         return null;
     }
 
-    // 実行可能な拡張子で配信されないよう、常に .bin として保存する
-    $name = bin2hex(random_bytes(16)) . '.bin';
+    // 実行可能な拡張子で配信されないよう基本は .bin。
+    // ただし再生可能な音声は、ブラウザが正しい Content-Type で扱えるよう
+    // 元の拡張子を維持する（音声形式は実行可能ではない）。
+    $ext = strtolower(pathinfo((string) ($validated['name'] ?? ''), PATHINFO_EXTENSION));
+    if (!in_array($ext, PLAYABLE_AUDIO_EXT, true)) {
+        $ext = 'bin';
+    }
+
+    $name = bin2hex(random_bytes(16)) . '.' . $ext;
     $dest = $dir . '/' . $name;
 
     if (!move_uploaded_file($validated['tmp'], $dest)) {

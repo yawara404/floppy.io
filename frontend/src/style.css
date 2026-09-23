@@ -647,6 +647,30 @@ textarea.input {
 }
 
 /* 添付フロッピーファイル */
+.post-floppy-wrap {
+  margin: 2px 0 8px;
+}
+
+.post-floppy-wrap .post-floppy {
+  margin: 0;
+}
+
+.post-floppy-audio {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  height: 36px;
+  margin-bottom: 6px;
+}
+
+.floppy-card-file {
+  margin: 6px 0;
+}
+
+.floppy-card-file .post-floppy {
+  margin: 0;
+}
+
 .post-floppy {
   display: inline-flex;
   align-items: center;

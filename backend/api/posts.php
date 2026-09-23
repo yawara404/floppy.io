@@ -28,7 +28,8 @@ function like_escape(string $value): string
 function with_image_url(array $row): array
 {
     $row['image_url']  = post_image_url($row);
-    $row['floppy_url'] = post_floppy_url($row);
+    $row['floppy_url']  = post_floppy_url($row);
+    $row['floppy_kind'] = $row['floppy_name'] !== '' ? floppy_kind($row['floppy_name']) : null;
 
     return $row;
 }

@@ -66,7 +66,8 @@ $stmt->execute([$row['id']]);
 
 $posts = array_map(static function (array $post): array {
     $post['image_url']  = post_image_url($post);
-    $post['floppy_url'] = post_floppy_url($post);
+    $post['floppy_url']  = post_floppy_url($post);
+    $post['floppy_kind'] = $post['floppy_name'] !== '' ? floppy_kind($post['floppy_name']) : null;
 
     return $post;
 }, $stmt->fetchAll());

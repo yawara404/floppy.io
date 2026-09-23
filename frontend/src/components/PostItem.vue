@@ -186,6 +186,33 @@ function fmtDate(s) {
         </button>
       </div>
 
+      <!-- 添付フロッピーファイル（音声はプレイヤー付き） -->
+      <div v-if="post.floppy_url" class="post-floppy-wrap">
+        <audio
+          v-if="post.floppy_kind === 'audio'"
+          class="post-floppy-audio"
+          controls
+          preload="none"
+          :src="post.floppy_url"
+        ></audio>
+
+        <a
+          class="post-floppy"
+          :href="post.floppy_url"
+          :download="post.floppy_name || 'floppy.bin'"
+        >
+          <span class="post-floppy-icon" aria-hidden="true">
+            {{ post.floppy_kind === 'audio' ? '🎵' : '💾' }}
+          </span>
+          <span>
+            <span class="post-floppy-name">{{ post.floppy_name || 'floppy.bin' }}</span>
+            <span class="post-floppy-meta">
+              {{ (post.floppy_bytes || 0).toLocaleString('ja-JP') }} bytes をダウンロード
+            </span>
+          </span>
+        </a>
+      </div>
+
       <div v-if="confirming" class="post-actions post-confirm">
         <span class="confirm-text">
           この投稿を削除しますか？（{{ post.total_bytes.toLocaleString('ja-JP') }} bytes 解放）
@@ -201,22 +228,6 @@ function fmtDate(s) {
           やめる
         </button>
       </div>
-
-      <!-- 添付フロッピーファイル -->
-      <a
-        v-if="post.floppy_url"
-        class="post-floppy"
-        :href="post.floppy_url"
-        :download="post.floppy_name || 'floppy.bin'"
-      >
-        <span class="post-floppy-icon" aria-hidden="true">💾</span>
-        <span>
-          <span class="post-floppy-name">{{ post.floppy_name || 'floppy.bin' }}</span>
-          <span class="post-floppy-meta">
-            {{ (post.floppy_bytes || 0).toLocaleString('ja-JP') }} bytes をダウンロード
-          </span>
-        </span>
-      </a>
 
       <div v-else class="post-actions">
         <button
