@@ -11,6 +11,7 @@ defineEmits(['delete', 'preview'])
 
 const canvas = ref(null)
 const playing = ref(false)
+const confirming = ref(false)
 
 // ドット絵が描かれていない投稿ではキャンバスを出さない
 const hasPixel = computed(() => /[1-9A-Fa-f]/.test(props.post.pixel_data || ''))
@@ -156,7 +157,33 @@ function fmtDate(s) {
         />
       </a>
 
-      <div class="post-actions">
+      <div v-if="confirming" class="post-actions post-confirm">
+        <span class="confirm-text">
+          この投稿を削除しますか？（{{ post.total_bytes.toLocaleString('ja-JP') }} bytes 解放）
+        </span>
+        <button
+          type="button"
+          class="link-btn danger"
+          @click="$emit('delete', post)"
+        >
+          削除する
+        </button>
+        <button type="button" class="link-btn" @click="confirming = false">
+          やめる
+        </button>
+      </div>
+
+      <div v-else class="post-actions">
+        <button
+          type="button"
+          class="link-btn like-btn"
+          :class="{ liked: post.liked }"
+          :title="post.liked ? 'いいねを取り消す' : 'いいね'"
+          @click="$emit('like', post)"
+        >
+          {{ post.liked ? '♥' : '♡' }} いいね
+          <span class="like-count">{{ post.like_count || 0 }}</span>
+        </button>
         <button type="button" class="link-btn" @click="$emit('preview', post)">
           埋め込み
         </button>
@@ -164,9 +191,9 @@ function fmtDate(s) {
           v-if="canDelete"
           type="button"
           class="link-btn danger"
-          @click="$emit('delete', post)"
+          @click="confirming = true"
         >
-          🗑 フォーマット
+          🗑 フォーマット（削除）
         </button>
       </div>
     </div>

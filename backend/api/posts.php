@@ -84,7 +84,10 @@ if ($method === 'GET') {
     $stmt = db()->prepare($sql);
     $stmt->execute($params);
 
-    respond_json(['posts' => array_map('with_image_url', $stmt->fetchAll())]);
+    $posts = array_map('with_image_url', $stmt->fetchAll());
+    $posts = attach_likes($posts, current_user());
+
+    respond_json(['posts' => $posts]);
 }
 
 // ---------------------------------------------------------------------------

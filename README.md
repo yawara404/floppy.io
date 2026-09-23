@@ -71,6 +71,7 @@ floppy_io/
 │       ├── user.php            # プロフィール＋そのユーザーの投稿一覧
 │       ├── posts.php           # 投稿一覧取得・新規投稿（容量判定 / 要ログイン）
 │       ├── delete_post.php     # 投稿削除（自分のみ）
+│       ├── like.php            # いいねの付け外し（トグル）
 │       ├── disk_usage.php      # 容量の参考値取得
 │       └── preview.php         # エコシステム連携用プレビュー API
 │   └── uploads/                # アップロードされた画像の実ファイル置き場
@@ -169,6 +170,7 @@ floppy_io/
 | `GET`  | `/api/posts.php[?username=floppy][&q=キーワード]` | 投稿一覧（新しい順 / 検索） |
 | `POST` | `/api/posts.php` | 新規投稿 `{ text, pixel_data }` または `multipart/form-data`（要ログイン / 容量判定） |
 | `POST` | `/api/delete_post.php` | 自分の投稿を削除 `{ id }`（要ログイン） |
+| `POST` | `/api/like.php` | いいねの付け外し `{ id }`（要ログイン・トグル） |
 | `GET`  | `/api/disk_usage.php[?username=floppy]` | 1 投稿あたりの上限 / 合計（参考値） |
 
 | `GET`  | `/api/preview.php?id=123` | 埋め込み用プレビュー（メタ情報＋HTML スニペット） |
@@ -188,6 +190,14 @@ floppy_io/
 - プロフィール画像も投稿の容量制限とは別枠です。
 - 保存済みの全投稿の合計は `GET /api/disk_usage.php` の `total_bytes` で確認できます
   （参考値・制限対象ではありません）。
+
+## いいね
+
+- 各投稿に「♡ いいね」ボタンがあります。クリックで付け外し（トグル）できます。
+- いいねにはログインが必要です。未ログインで押すと案内が表示されます。
+- 件数は誰でも見えますが、押したかどうかはユーザーごとに表示されます。
+- `likes` テーブルに保存し、投稿が削除されると連動して消えます
+  （1 ユーザー 1 投稿につき 1 件）。
 
 ## 画像投稿
 

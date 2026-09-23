@@ -85,6 +85,23 @@ CREATE TABLE IF NOT EXISTS posts (
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci;
 
+
+-- ------------------------------------------------------------
+-- いいね
+-- 1 ユーザー 1 投稿につき 1 件。投稿が消えれば連動して消える。
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS likes (
+  post_id    INT UNSIGNED NOT NULL,
+  user_id    INT UNSIGNED NOT NULL,
+  created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (post_id, user_id),
+  KEY idx_likes_user (user_id),
+  CONSTRAINT fk_likes_post FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
+  CONSTRAINT fk_likes_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
 -- ------------------------------------------------------------
 -- デモユーザー (username: floppy / password: floppy)
 -- ------------------------------------------------------------

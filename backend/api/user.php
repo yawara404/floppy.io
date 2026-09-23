@@ -69,5 +69,5 @@ $posts = array_map(static function (array $post): array {
 
 respond_json([
     'user'  => public_user($row),
-    'posts' => $posts,
+    'posts' => attach_likes($posts, current_user()),
 ]);

@@ -314,6 +314,65 @@ function user_avatar_pixel(int $userId): ?string
     return is_string($pixel) ? $pixel : null;
 }
 
+
+// ---------------------------------------------------------------------------
+// いいね
+// ---------------------------------------------------------------------------
+
+/**
+ * 投稿の配列に like_count（件数）と liked（ログイン中ユーザーが押したか）を付与する。
+ * まとめて 2 クエリで取得する。
+ */
+function attach_likes(array $posts, ?array $user = null): array
+{
+    if ($posts === []) {
+        return $posts;
+    }
+
+    $ids = array_map(static fn (array $p): int => (int) $p['id'], $posts);
+    $in  = implode(',', array_fill(0, count($ids), '?'));
+
+    $pdo = db();
+
+    $counts = [];
+    $stmt   = $pdo->prepare(
+        "SELECT post_id, COUNT(*) AS c FROM likes WHERE post_id IN ($in) GROUP BY post_id"
+    );
+    $stmt->execute($ids);
+    foreach ($stmt->fetchAll() as $row) {
+        $counts[(int) $row['post_id']] = (int) $row['c'];
+    }
+
+    $liked = [];
+    if ($user !== null) {
+        $stmt = $pdo->prepare(
+            "SELECT post_id FROM likes WHERE user_id = ? AND post_id IN ($in)"
+        );
+        $stmt->execute(array_merge([$user['id']], $ids));
+        foreach ($stmt->fetchAll() as $row) {
+            $liked[(int) $row['post_id']] = true;
+        }
+    }
+
+    foreach ($posts as &$post) {
+        $id = (int) $post['id'];
+        $post['like_count'] = $counts[$id] ?? 0;
+        $post['liked']      = isset($liked[$id]);
+    }
+    unset($post);
+
+    return $posts;
+}
+
+/** 1 投稿のいいね件数 */
+function like_count(int $postId): int
+{
+    $stmt = db()->prepare('SELECT COUNT(*) FROM likes WHERE post_id = ?');
+    $stmt->execute([$postId]);
+
+    return (int) $stmt->fetchColumn();
+}
+
 /** API レスポンス用にユーザー情報を整形する */
 function public_user(array $row, bool $withStats = true): array
 {

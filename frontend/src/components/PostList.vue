@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import PostItem from './PostItem.vue'
 import FloppyCard from './FloppyCard.vue'
-import { apiGet, apiDelete } from '../utils/api.js'
+import { apiGet, apiPost, apiDelete } from '../utils/api.js'
 import { isLoggedIn, currentUser, refreshUser } from '../store/auth.js'
 
 const props = defineProps({
@@ -25,10 +25,28 @@ function canDelete(post) {
 
 async function removePost(post) {
   error.value = ''
+
   try {
     await apiDelete('/delete_post.php', { id: post.id })
     await refreshUser()
     emit('changed')
+  } catch (e) {
+    error.value = e.message
+  }
+}
+
+async function toggleLike(post) {
+  error.value = ''
+
+  if (!isLoggedIn.value) {
+    error.value = 'いいねするにはログインが必要です。'
+    return
+  }
+
+  try {
+    const data = await apiPost('/like.php', { id: post.id })
+    post.liked = data.liked
+    post.like_count = data.like_count
   } catch (e) {
     error.value = e.message
   }
@@ -63,6 +81,7 @@ function closePreview() {
         :post="post"
         :can-delete="canDelete(post)"
         @delete="removePost"
+        @like="toggleLike"
         @preview="openPreview"
       />
     </div>
