@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { drawPixel } from '../utils/pixel.js'
+import { drawPixel, FLOPPY_AVATAR } from '../utils/pixel.js'
 
 const props = defineProps({
   post: { type: Object, required: true },
@@ -9,11 +9,19 @@ const props = defineProps({
 const canvas = ref(null)
 
 function render() {
-  drawPixel(canvas.value, props.post?.pixel_data)
+  if (!canvas.value) return
+
+  const pixel = props.post?.pixel_data || ''
+
+  // ドット絵が無い投稿（画像・YouTube・フロッピー添付のみ等）は
+  // 空白のままになるため、フロッピーアイコンを表示する
+  const blank = !/[1-9A-Fa-f]/.test(pixel)
+
+  drawPixel(canvas.value, blank ? FLOPPY_AVATAR : pixel)
 }
 
 onMounted(render)
-watch(() => props.post?.pixel_data, render)
+watch(() => [props.post?.pixel_data, props.post?.id], render)
 </script>
 
 <template>
