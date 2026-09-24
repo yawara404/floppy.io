@@ -9,6 +9,7 @@ import Profile from './views/Profile.vue'
 import Settings from './views/Settings.vue'
 import Help from './views/Help.vue'
 import Auth from './views/Auth.vue'
+import PostView from './views/PostView.vue'
 
 initRouter()
 
@@ -27,6 +28,9 @@ const view = computed(() => {
 
   const match = path.match(/^\/u\/([^/]+)$/)
   if (match) return { name: 'profile', username: decodeURIComponent(match[1]) }
+
+  const postMatch = path.match(/^\/p\/(\d+)$/)
+  if (postMatch) return { name: 'post', id: postMatch[1] }
 
   return { name: 'notfound' }
 })
@@ -146,6 +150,7 @@ onMounted(loadMe)
         />
         <Settings v-else-if="view.name === 'settings'" />
         <Help v-else-if="view.name === 'help'" />
+        <PostView v-else-if="view.name === 'post'" :key="view.id" :id="view.id" />
         <Auth v-else-if="view.name === 'auth'" :key="view.mode" :mode="view.mode" />
         <div v-else class="empty">ページが見つかりません。</div>
       </main>

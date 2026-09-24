@@ -7,7 +7,7 @@ const props = defineProps({
   canDelete: { type: Boolean, default: false },
 })
 
-defineEmits(['delete', 'preview'])
+defineEmits(['delete', 'share'])
 
 const canvas = ref(null)
 const playing = ref(false)
@@ -240,8 +240,8 @@ function fmtDate(s) {
           {{ post.liked ? '♥' : '♡' }} いいね
           <span class="like-count">{{ post.like_count || 0 }}</span>
         </button>
-        <button type="button" class="link-btn" @click="$emit('preview', post)">
-          埋め込み
+        <button type="button" class="link-btn" @click="$emit('share', post)">
+          🔗 共有
         </button>
       </div>
     </div>

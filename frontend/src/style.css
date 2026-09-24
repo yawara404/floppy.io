@@ -814,7 +814,7 @@ textarea.input {
 }
 
 /* ------------------------------------------------------------------
-   埋め込みプレビューカード (FloppyCard)
+   共有カード (FloppyCard)
    ------------------------------------------------------------------ */
 .floppy-card {
   display: flex;
@@ -915,7 +915,7 @@ textarea.input {
 }
 
 /* ------------------------------------------------------------------
-   モーダル (埋め込みプレビュー)
+   モーダル (共有ダイアログ)
    ------------------------------------------------------------------ */
 .modal-overlay {
   position: fixed;
@@ -970,6 +970,25 @@ textarea.input {
   min-height: 80px;
   font-family: ui-monospace, Menlo, Consolas, monospace;
   font-size: 11px;
+}
+
+/* 共有ダイアログ: 共有リンクとコピー操作 */
+.share-link-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.share-link {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.share-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
 }
 
 /* ------------------------------------------------------------------
@@ -1498,9 +1517,92 @@ textarea.input {
   /* --- モーダル --- */
   .modal-overlay {
     padding: 12px;
+    /* 画面より縦に長いダイアログでもスクロールできるようにする
+       (align-items: center のままだと上端が画面外に出て見えなくなる) */
+    align-items: flex-start;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .modal-window {
+    max-width: 100%;
+    /* auto マージンで、余白があるときは中央、足りないときはスクロール */
+    margin: auto;
+  }
+
+  .modal-body {
+    padding: 12px;
+  }
+
+  .modal-close {
+    min-width: 40px;
+    min-height: 40px;
+    margin: -8px -8px -8px 0;
+  }
+
+  /* --- 入力欄は 16px 以上にする ---
+     iOS Safari は 16px 未満の入力欄にフォーカスすると自動で拡大してしまう。
+     レイアウトが勝手にズームされるのを防ぐ。 */
+  .input,
+  textarea.input {
+    font-size: 16px;
+  }
+
+  .embed-code {
+    min-height: 64px;
+    max-height: 180px;
+    line-height: 1.4;
+  }
+
+  /* --- タップ領域を広げる（指で押しやすく） --- */
+  .post-actions {
+    gap: 8px;
+    margin-top: 2px;
+  }
+
+  .post-actions .link-btn {
+    display: inline-flex;
+    align-items: center;
+    /* flex 化すると「いいね」と件数の間の空白が消えるため gap で補う */
+    gap: 4px;
+    min-height: 36px;
+    padding: 0 8px;
+    margin-left: -8px;
+  }
+
+  .post-menu-btn {
+    width: 34px;
+    height: 34px;
+    font-size: 18px;
+  }
+
+  .post-head {
+    padding-right: 36px;
+  }
+
+  .post-menu {
+    top: 34px;
+  }
+
+  .post-menu-item {
+    padding: 12px 14px;
+  }
+
+  .swatch {
+    width: 30px;
+    height: 30px;
+  }
+
+  /* --- 共有ダイアログ --- */
+  .share-link-row .btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  /* --- 添付メディアは画面幅に収める --- */
+  .post-floppy-audio,
+  .youtube-embed,
+  .post-image {
     max-width: 100%;
   }
 }
