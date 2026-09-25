@@ -27,10 +27,27 @@ Apache へ転送するため、Apache の該当 vhost 内で `/floppy.io/` を�
 
 ```text
 ~/Quadtecho/floppy.io/
-├── index.html, assets/, config.js, favicon.png  -> frontend/dist へのリンク
+├── index.html, assets/, config.js, favicon.png, card.png  -> frontend/dist へのリンク
 ├── api      -> backend/api
 └── uploads  -> backend/uploads
 ```
+
+## SNS カード（OGP / Twitter Card）
+
+X（Twitter）や Slack に URL を貼ると、サイトのカードが展開されます。
+
+- カードの情報は `frontend/index.html` に**静的に**書いています。X などの
+  クローラーは JavaScript を実行しないため、実行時の注入では間に合いません。
+- 画像は 1200×630（`summary_large_image` 推奨サイズ・61KB）の
+  `frontend/public/card.png` です。
+- 元データは `tools/og-card.html` で、`tools/make-og-card.sh` で再生成できます。
+
+```bash
+tools/make-og-card.sh    # tools/og-card.html → frontend/public/card.png
+```
+
+> ⚠️ ハッシュルーティング（`#/p/12`）は X がフラグメントを無視するため、
+> 投稿ごとのカードには対応していません（サイト共通のカードになります）。
 
 ## 技術スタック
 
@@ -76,7 +93,9 @@ floppy_io/
 │       └── preview.php         # エコシステム連携用プレビュー API
 │   └── uploads/                # アップロードされた画像の実ファイル置き場
 │   └── tools/
-│       └── backfill_youtube.php # 既存投稿の YouTube メタ情報を後から取得
+│       ├── backfill_youtube.php # 既存投稿の YouTube メタ情報を後から取得
+│       ├── og-card.html         # SNS カード画像の元データ
+│       └── make-og-card.sh      # SNS カード画像を再生成する
 ├── database/
 │   └── schema.sql              # MySQL DDL（＋デモユーザー投入）
 ├── frontend/
@@ -108,6 +127,7 @@ floppy_io/
 │   │   └── style.css               # 昔の Twitter 風テーマ
 │   ├── public/
 │   │   ├── config.js               # 実行時 API 接続先（配信元に応じて切替）
+│   │   ├── card.png                # SNS カード用の画像 (1200x630)
 │   │   └── favicon.png             # 💾 をファビコン化したもの
 │   ├── index.html
 │   ├── vite.config.js              # 開発時 /api → :8000 プロキシ / 相対パス出力

@@ -3,9 +3,40 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="1.44MB しか使えない静寂のレトロ SNS「floppy.io」" />
+
+    <!--
+      SNS のカード (OGP / Twitter Card)
+
+      X (Twitter) や Slack などのクローラーは JavaScript を実行しないため、
+      カードの情報はここに静的に書いておく必要があります。
+      画像は frontend/public/card.png (1200x630) を配信したものです。
+      再生成: tools/make-og-card.sh
+
+      公開先を変えるときは、下の og:url / og:image / twitter:image の URL を
+      書き換えてください。
+    -->
+    <meta name="description" content="1 投稿あたり 1.44MB。ドット絵・画像・YouTube・8bit 曲をフロッピーディスク 1 枚に収めて投稿する、昔の Twitter 風のレトロ SNS。" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="floppy.io" />
+    <meta property="og:title" content="floppy.io — 1.44MB しか使えない静寂のレトロ SNS" />
+    <meta property="og:description" content="1 投稿あたり 1.44MB。ドット絵・画像・YouTube・8bit 曲を、フロッピーディスク 1 枚に収めて投稿するレトロ SNS。" />
+    <meta property="og:url" content="https://music.wawa-app.me/floppy.io/" />
+    <meta property="og:image" content="https://music.wawa-app.me/floppy.io/card.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="floppy.io — 1.44MB しか使えない静寂のレトロ SNS" />
+    <meta property="og:locale" content="ja_JP" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="floppy.io — 1.44MB しか使えない静寂のレトロ SNS" />
+    <meta name="twitter:description" content="1 投稿あたり 1.44MB。ドット絵・画像・YouTube・8bit 曲を、フロッピーディスク 1 枚に収めて投稿するレトロ SNS。" />
+    <meta name="twitter:image" content="https://music.wawa-app.me/floppy.io/card.png" />
+    <meta name="twitter:image:alt" content="floppy.io — 1.44MB しか使えない静寂のレトロ SNS" />
+
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <title>floppy.io</title>
+    <title>floppy.io — 1.44MB しか使えない静寂のレトロ SNS</title>
     <!-- API の接続先を実行時に決める (MAMP / Live Server / Vite いずれでも動く) -->
     <script src="./config.js"></script>
   </head>

@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>floppy.io OGP card</title>
+    <!-- SNS のカード画像 (1200x630) の元データ。tools/make-og-card.sh で
+         frontend/public/card.png を再生成できます。 -->
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      html,
+      body { width: 1200px; height: 630px; }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+        color: #333333;
+        background: #f5f8fa;
+      }
+
+      /* サイトのトップバーと同じ配色 */
+      .bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 48px;
+        background: #9ae4e8;
+        border-bottom: 1px solid #6fc7cc;
+        color: #006e94;
+      }
+
+      .bar .logo { font-size: 34px; font-weight: bold; letter-spacing: 0.5px; }
+
+      .bar .note {
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 22px;
+        color: #006e94;
+      }
+
+      .main {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 64px;
+        padding: 0 80px;
+      }
+
+      /* フロッピーアイコン (16x16 ドット絵) */
+      .floppy {
+        display: grid;
+        grid-template-columns: repeat(16, 15px);
+        grid-auto-rows: 15px;
+        padding: 16px;
+        background: #ffffff;
+        border: 2px solid #cccccc;
+        border-radius: 6px;
+        box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.08);
+      }
+
+      .floppy i { display: block; }
+
+      .title { font-size: 82px; font-weight: bold; color: #006e94; line-height: 1.1; }
+
+      .lead { margin-top: 14px; font-size: 34px; line-height: 1.5; }
+
+      /* 3 + 2 で折り返すよう幅を制限する */
+      .tags { margin-top: 26px; display: flex; flex-wrap: wrap; gap: 10px; max-width: 600px; }
+
+      .tags span {
+        padding: 8px 17px;
+        background: #ffffff;
+        border: 1px solid #cfe8ef;
+        border-radius: 999px;
+        font-size: 24px;
+        color: #006e94;
+      }
+
+      .foot {
+        padding: 0 80px 26px;
+        font-size: 22px;
+        color: #999999;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bar">
+      <span class="logo">💾 floppy.io</span>
+      <span class="note">1 投稿あたり 1.44MB</span>
+    </div>
+
+    <div class="main">
+      <div class="floppy">
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#c0c0c0"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#808080"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#ffffff"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+        <i style="background:#000000"></i>
+      </div>
+
+      <div>
+        <div class="title">floppy.io</div>
+        <div class="lead">1.44MB しか使えない<br />静寂のレトロ SNS</div>
+        <div class="tags">
+          <span>🖼 ドット絵</span>
+          <span>📷 画像</span>
+          <span>▶ YouTube</span>
+          <span>💾 フロッピー添付</span>
+          <span>🎵 8bit 曲</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">music.wawa-app.me/floppy.io</div>
+  </body>
+</html>
