@@ -34,7 +34,18 @@ Apache へ転送するため、Apache の該当 vhost 内で `/floppy.io/` を�
 
 ## SNS カード（OGP / Twitter Card）
 
-X（Twitter）や Slack に URL を貼ると、サイトのカードが展開されます。
+URL を貼るとサイトのカードが展開されます。OGP は業界標準なので、X（Twitter）
+専用ではなく**各 SNS で共通して使えます**。
+
+| サービス | 参照するタグ |
+| --- | --- |
+| X（Twitter） | `twitter:*`（無ければ `og:*` にフォールバック） |
+| Facebook / Instagram DM | `og:*` |
+| Slack / Discord / Teams | `og:*`（Discord は `theme-color` で埋め込みの色を変える） |
+| LINE / WhatsApp / Telegram | `og:*` |
+| LinkedIn / Pinterest | `og:*` |
+| Mastodon / Misskey / Bluesky | `og:*` |
+| iMessage / はてなブックマーク / note など | `og:*` |
 
 - カードの情報は `frontend/index.html` に**静的に**書いています。X などの
   クローラーは JavaScript を実行しないため、実行時の注入では間に合いません。
