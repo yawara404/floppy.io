@@ -1,7 +1,8 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import PostList from '../components/PostList.vue'
-import { apiGet } from '../utils/api.js'
+import { apiGet, apiPost } from '../utils/api.js'
+import { isLoggedIn, refreshUser } from '../store/auth.js'
 import { drawPixel, FLOPPY_AVATAR } from '../utils/pixel.js'
 
 const props = defineProps({
@@ -11,6 +12,8 @@ const props = defineProps({
 const user = ref(null)
 const posts = ref([])
 const error = ref('')
+const followError = ref('')
+const followBusy = ref(false)
 const canvas = ref(null)
 
 function fmt(n) {
@@ -26,6 +29,7 @@ function fmtDate(s) {
 
 async function load() {
   error.value = ''
+  followError.value = ''
   try {
     const data = await apiGet(
       '/user.php?username=' + encodeURIComponent(props.username),
@@ -36,6 +40,26 @@ async function load() {
     error.value = e.message
     user.value = null
     posts.value = []
+  }
+}
+
+// フォローの付け外し（トグル）
+async function toggleFollow() {
+  if (!user.value || followBusy.value) return
+
+  followError.value = ''
+  followBusy.value = true
+
+  try {
+    const data = await apiPost('/follow.php', { username: user.value.username })
+    user.value.following = data.following
+    user.value.follower_count = data.follower_count
+    // サイドバーに自分のフォロー数が出ているので更新しておく
+    await refreshUser()
+  } catch (e) {
+    followError.value = e.message
+  } finally {
+    followBusy.value = false
   }
 }
 
@@ -80,10 +104,20 @@ watch(() => props.username, load)
 
           <p v-if="user.bio" class="profile-header-bio">{{ user.bio }}</p>
 
+          <p v-if="followError" class="msg msg-error">{{ followError }}</p>
+
           <div class="profile-header-stats">
             <div class="stat">
               <b>{{ fmt(user.post_count) }}</b>
               <span>投稿</span>
+            </div>
+            <div class="stat">
+              <b>{{ fmt(user.following_count) }}</b>
+              <span>フォロー</span>
+            </div>
+            <div class="stat">
+              <b>{{ fmt(user.follower_count) }}</b>
+              <span>フォロワー</span>
             </div>
             <div class="stat">
               <b>{{ fmt(user.total_bytes) }}</b>
@@ -98,6 +132,23 @@ watch(() => props.username, load)
               <span>登録</span>
             </div>
           </div>
+        </div>
+
+        <!-- フォロー操作（自分自身のプロフィールには出さない） -->
+        <div v-if="!user.is_self" class="profile-header-actions">
+          <template v-if="isLoggedIn">
+            <button
+              type="button"
+              class="btn btn-primary follow-btn"
+              :class="{ following: user.following }"
+              :disabled="followBusy"
+              :title="user.following ? '@' + user.username + ' のフォローを外す' : '@' + user.username + ' をフォローする'"
+              @click="toggleFollow"
+            >
+              {{ user.following ? 'フォロー中' : 'フォローする' }}
+            </button>
+          </template>
+          <a v-else class="btn btn-primary" href="#/login">ログインしてフォロー</a>
         </div>
       </section>
 

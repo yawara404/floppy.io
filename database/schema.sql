@@ -107,6 +107,23 @@ CREATE TABLE IF NOT EXISTS likes (
   COLLATE = utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------
+-- フォロー
+-- follower_id が followee_id をフォローする (1 組 1 件)。
+-- どちらかのユーザーが消えれば連動して消える。
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS follows (
+  follower_id INT UNSIGNED NOT NULL,
+  followee_id INT UNSIGNED NOT NULL,
+  created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (follower_id, followee_id),
+  KEY idx_follows_followee (followee_id),
+  CONSTRAINT fk_follows_follower FOREIGN KEY (follower_id) REFERENCES users (id) ON DELETE CASCADE,
+  CONSTRAINT fk_follows_followee FOREIGN KEY (followee_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------
 -- デモユーザー (username: floppy / password: floppy)
 -- ------------------------------------------------------------
 INSERT IGNORE INTO users (id, username, display_name, bio, password_hash) VALUES (

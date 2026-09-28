@@ -4,8 +4,9 @@ declare(strict_types=1);
 /**
  * floppy.io — 投稿 API
  *
- * GET  /api/posts.php[?username=floppy][&q=キーワード]
+ * GET  /api/posts.php[?username=floppy][&q=キーワード][&feed=following]
  *      投稿一覧 (新しい順)。username で絞り込み、q で本文・ユーザー名を検索。
+ *      feed=following で「フォロー中タイムライン」= 自分 + フォロー中ユーザーの投稿 (要ログイン)。
  *
  * POST /api/posts.php
  *      JSON               { text, pixel_data }
@@ -57,11 +58,13 @@ const POST_COLUMNS = 'p.id,
             p.created_at';
 
 // ---------------------------------------------------------------------------
-// GET: 投稿一覧取得 (?username= で絞り込み / ?q= で検索)
+// GET: 投稿一覧取得 (?username= で絞り込み / ?q= で検索 / ?feed=following で
+//      フォロー中タイムライン）
 // ---------------------------------------------------------------------------
 if ($method === 'GET') {
     $username = trim((string) ($_GET['username'] ?? ''));
     $query    = trim((string) ($_GET['q'] ?? ''));
+    $feed     = trim((string) ($_GET['feed'] ?? ''));
 
     $sql    = 'SELECT ' . POST_COLUMNS . '
                  FROM posts p
@@ -72,6 +75,16 @@ if ($method === 'GET') {
     if ($username !== '') {
         $where[]  = 'u.username = ?';
         $params[] = $username;
+    }
+
+    // フォロー中タイムライン: フォローしているユーザーの投稿 + 自分の投稿。
+    // 誰をフォローしているかは本人にしか見せないため、ログイン必須にする。
+    if ($feed === 'following') {
+        $me = require_user();
+
+        $where[] = '(p.user_id = ? OR p.user_id IN'
+                 . ' (SELECT followee_id FROM follows WHERE follower_id = ?))';
+        array_push($params, (int) $me['id'], (int) $me['id']);
     }
 
     if ($query !== '') {

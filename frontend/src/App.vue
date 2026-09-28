@@ -19,7 +19,8 @@ const menuOpen = ref(false)
 const view = computed(() => {
   const path = route.value.path
 
-  if (path === '/' || path === '') return { name: 'home' }
+  if (path === '/' || path === '') return { name: 'home', feed: 'timeline' }
+  if (path === '/following') return { name: 'home', feed: 'following' }
   if (path === '/search') return { name: 'search' }
   if (path === '/help') return { name: 'help' }
   if (path === '/settings') return { name: 'settings' }
@@ -78,9 +79,14 @@ onMounted(loadMe)
         <nav class="nav" :class="{ open: menuOpen }">
           <a
             class="nav-link"
-            :class="{ active: view.name === 'home' }"
+            :class="{ active: view.name === 'home' && view.feed === 'timeline' }"
             href="#/"
           >ホーム</a>
+          <a
+            class="nav-link"
+            :class="{ active: view.name === 'home' && view.feed === 'following' }"
+            href="#/following"
+          >フォロー中</a>
           <a
             class="nav-link"
             :class="{ active: view.name === 'search' }"
@@ -120,6 +126,9 @@ onMounted(loadMe)
       </div>
     </header>
 
+    <!-- モバイル: メニューを開いている間だけ本体を覆うシート（タップで閉じる） -->
+    <div v-if="menuOpen" class="nav-backdrop" @click="menuOpen = false"></div>
+
     <div class="page" :class="{ 'page-profile': view.name === 'profile' }">
       <!-- 左カラム -->
       <aside class="sidebar">
@@ -141,7 +150,7 @@ onMounted(loadMe)
 
       <!-- 右カラム -->
       <main class="content">
-        <Home v-if="view.name === 'home'" />
+        <Home v-if="view.name === 'home'" :feed="view.feed" />
         <Search v-else-if="view.name === 'search'" />
         <Profile
           v-else-if="view.name === 'profile'"

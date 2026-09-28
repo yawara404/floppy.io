@@ -72,7 +72,16 @@ $posts = array_map(static function (array $post): array {
     return $post;
 }, $stmt->fetchAll());
 
+$me = current_user();
+
+$user = public_user($row);
+
+// ログイン中ユーザーから見た関係 (自分自身か / フォロー中か)
+$user['is_self']   = $me !== null && (int) $me['id'] === (int) $row['id'];
+$user['following'] = $me !== null && !$user['is_self']
+    && is_following((int) $me['id'], (int) $row['id']);
+
 respond_json([
-    'user'  => public_user($row),
-    'posts' => attach_likes($posts, current_user()),
+    'user'  => $user,
+    'posts' => attach_likes($posts, $me),
 ]);

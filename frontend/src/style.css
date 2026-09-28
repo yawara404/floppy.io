@@ -146,6 +146,11 @@ a {
   transform: translateY(-6px) rotate(-45deg);
 }
 
+/* メニューを開いている間だけ本体を覆うシート（モバイル専用） */
+.nav-backdrop {
+  display: none;
+}
+
 /* ------------------------------------------------------------------
    2 カラムレイアウト
    ------------------------------------------------------------------ */
@@ -235,7 +240,8 @@ a {
 
 .profile-stats {
   display: flex;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 8px 14px;
   margin-top: 10px;
   padding-top: 8px;
   border-top: 1px solid #eeeeee;
@@ -537,6 +543,30 @@ textarea.input {
 .timeline-head h2 {
   margin: 0;
   font-size: 16px;
+}
+
+/* タイムライン / フォロー中 のタブ切り替え（昔の Twitter 風） */
+.feed-tabs {
+  display: flex;
+  gap: 16px;
+}
+
+.feed-tab {
+  padding-bottom: 3px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: bold;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+
+.feed-tab:hover {
+  color: var(--link);
+}
+
+.feed-tab.active {
+  color: var(--link);
+  border-bottom-color: var(--link);
 }
 
 .timeline-count {
@@ -1072,6 +1102,29 @@ textarea.input {
   border-top: 1px solid #eeeeee;
 }
 
+/* フォロー操作（プロフィールの右上） */
+.profile-header-actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+/* 「フォローする」は青、「フォロー中」は控えめなグレー（昔の Twitter 風） */
+.follow-btn {
+  min-width: 118px;
+}
+
+.follow-btn.following {
+  color: var(--text);
+  font-weight: normal;
+  background: #f5f5f5;
+  border-color: #cccccc;
+}
+
+.follow-btn.following:hover:not(:disabled) {
+  background: #eaeaea;
+  border-color: #cccccc;
+}
+
 .panel {
   margin-bottom: 16px;
   padding: 14px;
@@ -1294,10 +1347,13 @@ textarea.input {
 }
 
 @media (max-width: 700px) {
-  /* --- トップバー: ロゴ + アカウントを 1 段目、ナビはハンバーガーで開閉 --- */
+  /* --- トップバー: ロゴ + アカウントを 1 段目、ナビはハンバーガーで開閉 ---
+     ナビはトップバーの下に「重ねて」表示する（position: absolute）。
+     ヘッダーの高さが変わらないので、開閉してもメインがずれない。 */
   .topbar-inner {
+    /* ロゴ + アカウントが 1 行に収まらないほど狭い場合だけ折り返す
+       （ナビは重ねるので、通常はヘッダーの高さは変わらない） */
     flex-wrap: wrap;
-    row-gap: 0;
     padding: 8px 12px;
   }
 
@@ -1315,19 +1371,36 @@ textarea.input {
     gap: 10px;
   }
 
+  /* トップバー (position: sticky) を基準に、その真下へ重ねる */
   .nav {
     display: none;
-    order: 5;
-    width: 100%;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
     flex-direction: column;
     gap: 0;
-    margin-top: 8px;
-    padding-top: 4px;
-    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    padding: 4px 12px 8px;
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--header-border);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    /* 画面より長いメニューはスクロールできるようにする */
+    max-height: calc(100vh - 100%);
+    max-height: calc(100dvh - 100%);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .nav.open {
     display: flex;
+  }
+
+  /* メニューの外側をタップしたら閉じる（トップバーの下に敷く） */
+  .nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 15;
   }
 
   .nav .nav-link {
@@ -1480,6 +1553,8 @@ textarea.input {
   .profile-header {
     gap: 12px;
     padding: 12px;
+    /* フォローボタンは折り返して全幅に置く */
+    flex-wrap: wrap;
   }
 
   .profile-header-avatar {
@@ -1493,6 +1568,20 @@ textarea.input {
 
   .profile-header-stats {
     gap: 14px;
+  }
+
+  .profile-header-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .profile-header-actions .btn {
+    width: 100%;
+  }
+
+  /* --- タイムラインのタブ --- */
+  .feed-tab {
+    padding: 6px 0 4px;
   }
 
   /* --- 設定 / ヘルプ / 認証 --- */

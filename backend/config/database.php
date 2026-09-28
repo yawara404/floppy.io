@@ -398,6 +398,40 @@ function like_count(int $postId): int
     return (int) $stmt->fetchColumn();
 }
 
+// ---------------------------------------------------------------------------
+// フォロー
+//
+// 「フォロー中タイムライン」は follows テーブル (follower_id → followee_id)
+// を参照して、自分 + フォローしているユーザーの投稿を新しい順に返す。
+// ---------------------------------------------------------------------------
+
+/** ユーザーのフォロー数 / フォロワー数 */
+function follow_stats(int $userId): array
+{
+    $stmt = db()->prepare(
+        'SELECT (SELECT COUNT(*) FROM follows WHERE follower_id = ?),
+                (SELECT COUNT(*) FROM follows WHERE followee_id = ?)'
+    );
+    $stmt->execute([$userId, $userId]);
+    [$following, $followers] = $stmt->fetch(PDO::FETCH_NUM);
+
+    return [
+        'following_count' => (int) $following,
+        'follower_count'  => (int) $followers,
+    ];
+}
+
+/** $followerId が $followeeId をフォローしているか */
+function is_following(int $followerId, int $followeeId): bool
+{
+    $stmt = db()->prepare(
+        'SELECT 1 FROM follows WHERE follower_id = ? AND followee_id = ?'
+    );
+    $stmt->execute([$followerId, $followeeId]);
+
+    return (bool) $stmt->fetchColumn();
+}
+
 /** API レスポンス用にユーザー情報を整形する */
 function public_user(array $row, bool $withStats = true): array
 {
@@ -415,7 +449,7 @@ function public_user(array $row, bool $withStats = true): array
         'avatar_pixel' => user_avatar_pixel($id),
     ];
 
-    return $withStats ? $user + user_stats($id) : $user;
+    return $withStats ? $user + user_stats($id) + follow_stats($id) : $user;
 }
 
 /** users テーブルの共通 SELECT 列 */

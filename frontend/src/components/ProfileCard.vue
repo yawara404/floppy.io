@@ -57,6 +57,14 @@ watch(() => [props.user?.avatar_url, props.user?.avatar_pixel], render, {
         <span>投稿</span>
       </div>
       <div class="stat">
+        <b>{{ fmt(user.following_count) }}</b>
+        <span>フォロー</span>
+      </div>
+      <div class="stat">
+        <b>{{ fmt(user.follower_count) }}</b>
+        <span>フォロワー</span>
+      </div>
+      <div class="stat">
         <b>{{ fmt(user.total_bytes) }}</b>
         <span>合計バイト</span>
       </div>
