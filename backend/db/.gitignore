@@ -1,2 +1,3 @@
-# Adminer 本体（サードパーティ）は tools/fetch-adminer.sh で再取得できます
+# Adminer 本体（サードパーティ）はリポジトリに含めない
+#   使う場合は https://www.adminer.org/ から adminer.php を取得してこのフォルダに置く
 adminer.php
