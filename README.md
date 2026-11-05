@@ -131,7 +131,10 @@ floppy_io/
 │   ├── public/
 │   │   ├── config.js               # 実行時 API 接続先
 │   │   ├── card.png                # SNS カード用の画像 (1200x630)
-│   │   └── favicon.png
+│   │   ├── favicon.svg             # ピクセルフロッピー (SVG)
+│   │   ├── favicon.png             # 512x512 fallback
+│   │   ├── favicon-32.png          # 32x32 fallback
+│   │   └── apple-touch-icon.png    # 180x180
 │   ├── nuxt.config.ts              # OGP / フォント / プロキシ / ハッシュルーティング
 │   └── package.json
 ├── tools/
