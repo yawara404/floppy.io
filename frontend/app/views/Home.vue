@@ -13,6 +13,7 @@ const props = defineProps({
 
 const posts = ref([])
 const error = ref('')
+const loading = ref(false)
 
 const isFollowingFeed = computed(() => props.feed === 'following')
 
@@ -34,8 +35,8 @@ const needsLogin = computed(() => isFollowingFeed.value && !isLoggedIn.value)
 
 const emptyText = computed(() =>
   isFollowingFeed.value
-    ? 'フォロー中のユーザーの投稿はまだありません。気になる人をフォローしてみましょう'
-    : 'まだ投稿がありません。最初の投稿をしてみましょう',
+    ? 'フォロー中のユーザーの投稿はまだありません。気になる人をフォローしてみましょう。'
+    : 'まだ投稿がありません。最初の 1 枚を書き込んでみましょう。',
 )
 
 async function load() {
@@ -44,9 +45,11 @@ async function load() {
   // 未ログインでは取得できない（401）ので、案内だけ表示する
   if (needsLogin.value) {
     posts.value = []
+    loading.value = false
     return
   }
 
+  loading.value = true
   try {
     const path = isFollowingFeed.value ? '/posts?feed=following' : '/posts'
     const data = await apiGet(path)
@@ -54,6 +57,8 @@ async function load() {
   } catch (e) {
     error.value = e.message
     posts.value = []
+  } finally {
+    loading.value = false
   }
 }
 
@@ -253,6 +258,7 @@ onMounted(load)
       <PostList
         v-if="!needsLogin"
         :posts="posts"
+        :loading="loading"
         :empty-text="emptyText"
         @changed="load"
       />

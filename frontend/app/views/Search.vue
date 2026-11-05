@@ -110,6 +110,7 @@ onMounted(() => {
 
       <PostList
         :posts="posts"
+        :loading="loading"
         :empty-text="'「' + (route.query.q || '') + '」に一致する投稿はありませんでした。'"
         @changed="runSearch(route.query.q || '')"
       />

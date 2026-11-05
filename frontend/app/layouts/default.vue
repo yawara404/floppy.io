@@ -202,7 +202,6 @@ onMounted(() => {
             </NuxtLink>
           </template>
           <template v-else>
-            <NuxtLink class="topbar-login" to="/login">ログイン</NuxtLink>
             <NuxtLink class="topbar-join" to="/register">[ 参加 ]</NuxtLink>
           </template>
 

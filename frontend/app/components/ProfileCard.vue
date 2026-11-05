@@ -13,6 +13,7 @@ const DISK_LIMIT = 1474560
 // 最大の投稿が 1 枚のフロッピーに対してどれくらいか
 const capacityPercent = computed(() => {
   const bytes = Number(props.user?.largest_post_bytes || 0)
+  if (bytes <= 0) return 0
   return Math.max(1, Math.min(100, (bytes / DISK_LIMIT) * 100))
 })
 

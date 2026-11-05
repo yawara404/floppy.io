@@ -83,7 +83,8 @@ function fmtDate(s) {
   // MySQL の "YYYY-MM-DD HH:MM:SS" を Date に変換
   const d = new Date(String(s).replace(' ', 'T'))
   if (Number.isNaN(d.getTime())) return String(s)
-  return d.toLocaleString('ja-JP', { hour12: false })
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 </script>
 
@@ -254,15 +255,17 @@ function fmtDate(s) {
           class="link-btn action-btn like-btn"
           :class="{ liked: post.liked }"
           :title="post.liked ? 'いいねを取り消す' : 'いいね'"
+          :aria-label="post.liked ? 'いいねを取り消す' : 'いいね'"
           :aria-pressed="post.liked ? 'true' : 'false'"
           @click="$emit('like', post)"
         >
           <span aria-hidden="true">{{ post.liked ? '♥' : '♡' }}</span> いいね
-          <span class="like-count">{{ post.like_count || 0 }}</span>
+          <span class="like-count">{{ String(post.like_count || 0).padStart(2, '0') }}</span>
         </button>
         <button
           type="button"
           class="link-btn action-btn"
+          aria-label="投稿を共有"
           @click="$emit('share', post)"
         >
           <span aria-hidden="true">↗</span> 共有

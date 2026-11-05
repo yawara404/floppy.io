@@ -12,6 +12,7 @@ const props = defineProps({
 const user = ref(null)
 const posts = ref([])
 const error = ref('')
+const loading = ref(false)
 const followError = ref('')
 const followBusy = ref(false)
 const canvas = ref(null)
@@ -30,6 +31,7 @@ function fmtDate(s) {
 async function load() {
   error.value = ''
   followError.value = ''
+  loading.value = true
   try {
     const data = await apiGet(
       '/user?username=' + encodeURIComponent(props.username),
@@ -40,6 +42,8 @@ async function load() {
     error.value = e.message
     user.value = null
     posts.value = []
+  } finally {
+    loading.value = false
   }
 }
 
@@ -169,6 +173,7 @@ watch(() => props.username, load)
 
         <PostList
           :posts="posts"
+          :loading="loading"
           :empty-text="'@' + user.username + ' はまだ投稿していません'"
           @changed="load"
         />

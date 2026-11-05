@@ -7,18 +7,18 @@
 :root {
   color-scheme: light;
 
-  --paper: #fffdf6;
-  --paper-2: #f6f2e4;
-  --paper-3: #efead9;
+  --paper: #fffdf7;
+  --paper-2: #f7f3e7;
+  --paper-3: #ede7d5;
   --page: #e9eee7;
   --page-2: #dfe7df;
 
   --ink: #23262b;
   --ink-2: #4d524d;
-  --muted: #787c70;
+  --muted: #6b6f63;
 
-  --line: #d2ccb9;
-  --line-strong: #9b947f;
+  --line: #cec8b5;
+  --line-strong: #8f8873;
 
   --header: #cfe9d8;
   --header-2: #b7ddc5;
@@ -40,7 +40,7 @@
 
   --radius: 3px;
   --max: 1080px;
-  --topbar-h: 62px;
+  --topbar-h: 56px;
 
   --font-display: 'DotGothic16', 'Noto Sans JP', 'Hiragino Sans',
     'Yu Gothic', sans-serif;
@@ -1325,7 +1325,7 @@ textarea.input {
 }
 
 .input::placeholder {
-  color: #9a9c90;
+  color: #7c8074;
 }
 
 .input:focus {
@@ -1750,8 +1750,9 @@ textarea.input {
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 8px;
-  padding: 0 2px;
+  margin-bottom: 10px;
+  padding: 0 2px 7px;
+  border-bottom: 1px solid var(--line);
 }
 
 .timeline-head h2 {
@@ -2131,16 +2132,104 @@ textarea.input {
   font-size: 11px;
 }
 
-/* 空状態 */
+/* 空状態 / 読み込み中 / DAT フッター */
 .empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   padding: 30px 18px;
   border: 2px dashed var(--line-strong);
   background: var(--paper);
+  text-align: center;
+}
+
+.empty-mark {
+  padding: 3px 8px;
+  border: 1px dashed var(--orange);
+  background: var(--paper-2);
+  color: var(--orange);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+}
+
+.empty-text {
+  margin: 0;
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1.8;
-  text-align: center;
+}
+
+.skeleton-post {
+  display: flex;
+  gap: 11px;
+  padding: 13px 14px;
+  border-bottom: 1px dotted var(--line);
+}
+
+.skeleton-post:last-child {
+  border-bottom: none;
+}
+
+.skeleton-avatar {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  background: var(--paper-3);
+  animation: skeleton-blink 1.2s steps(2, end) infinite;
+}
+
+.skeleton-body {
+  display: block;
+  flex: 1 1 auto;
+  padding-top: 3px;
+}
+
+.skeleton-line {
+  display: block;
+  height: 8px;
+  margin-bottom: 8px;
+  background: var(--paper-3);
+  animation: skeleton-blink 1.2s steps(2, end) infinite;
+}
+
+.skeleton-line-sm {
+  width: 28%;
+}
+
+.skeleton-line-lg {
+  width: 82%;
+}
+
+.skeleton-line-md {
+  width: 56%;
+  margin-bottom: 0;
+}
+
+@keyframes skeleton-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.timeline-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 7px 4px 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.03em;
 }
 
 /* ------------------------------------------------------------------
@@ -3209,6 +3298,156 @@ textarea.input {
   .pulse-dot {
     animation: none !important;
   }
+}
+
+/* ------------------------------------------------------------------
+   UI polish (読みやすさ・余白・フォーカス)
+   ------------------------------------------------------------------ */
+.page {
+  padding-top: 20px;
+  padding-bottom: 72px;
+  gap: 22px;
+}
+
+.content > div > * + * {
+  margin-top: 20px;
+}
+
+.hero {
+  padding: 34px 30px;
+}
+
+.profile-card {
+  padding: 16px;
+}
+
+.composer {
+  padding: 18px;
+}
+
+.panel {
+  padding: 20px;
+}
+
+.post {
+  padding: 14px 16px;
+}
+
+.post-text {
+  font-size: 14px;
+  line-height: 1.85;
+}
+
+.hero-lead {
+  font-size: 14px;
+}
+
+.feature-card p {
+  font-size: 12.5px;
+}
+
+.profile-bio {
+  font-size: 12.5px;
+}
+
+.panel-note {
+  font-size: 12.5px;
+}
+
+.auth-sub {
+  font-size: 12px;
+}
+
+.help-list {
+  font-size: 12.5px;
+}
+
+.hero-eyebrow {
+  font-size: 9px;
+}
+
+.section-kicker,
+.feature-index,
+.field-label,
+.profile-card-top,
+.profile-disk-head,
+.status-title,
+.composer-led,
+.aa-title {
+  font-size: 9px;
+}
+
+.hero-stats dt,
+.stat span,
+.brand-badge,
+.aa-local,
+.footer-tag {
+  font-size: 8.5px;
+}
+
+.timeline-count,
+.timeline-foot,
+.empty-mark,
+.aa-hint,
+.footer-note {
+  font-size: 9px;
+}
+
+.user-chip,
+.post-handle,
+.profile-handle {
+  font-size: 10.5px;
+}
+
+.post-subline,
+.post-bytes,
+.gauge-label {
+  font-size: 9px;
+}
+
+.post-kind,
+.aa-tab,
+.search-suggest,
+.search-suggest a {
+  font-size: 10px;
+}
+
+.empty-text {
+  font-size: 11.5px;
+}
+
+.gauge-stats {
+  font-size: 9px;
+}
+
+.gnav-more-head {
+  font-size: 9px;
+}
+
+.gnav-more-key {
+  font-size: 8.5px;
+}
+
+#timeline {
+  scroll-margin-top: 84px;
+}
+
+a {
+  text-underline-offset: 2px;
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible,
+.gnav-more-btn:focus-visible,
+.gnav-more-item:focus-visible,
+.feed-tab:focus-visible,
+.post-menu-btn:focus-visible,
+.aa-tab:focus-visible,
+.aa-stamp:focus-visible,
+.swatch:focus-visible,
+.modal-close:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
 }
 
 /* ------------------------------------------------------------------

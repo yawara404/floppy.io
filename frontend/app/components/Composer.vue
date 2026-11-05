@@ -349,7 +349,6 @@ onBeforeUnmount(() => {
   <section class="composer">
     <div class="composer-head">
       <div>
-        <p class="section-kicker">WRITE TO DISK</p>
         <h2 class="composer-title">いま、なにを残す？</h2>
       </div>
       <span class="composer-led"><span class="pulse-dot"></span>REC</span>
@@ -370,11 +369,11 @@ onBeforeUnmount(() => {
       label="DISK (C:) / この投稿"
     />
 
-    <p v-if="imageError" class="msg msg-error" style="margin: 10px 0 0">
+    <p v-if="imageError" class="msg msg-error" role="alert" style="margin: 10px 0 0">
       {{ imageError }}
     </p>
 
-    <p v-if="floppyError" class="msg msg-error" style="margin: 10px 0 0">
+    <p v-if="floppyError" class="msg msg-error" role="alert" style="margin: 10px 0 0">
       {{ floppyError }}
     </p>
 
@@ -390,7 +389,7 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <p v-if="error" class="msg msg-error" style="margin: 10px 0 0">
+    <p v-if="error" class="msg msg-error" role="alert" style="margin: 10px 0 0">
       {{ error }}
     </p>
 
@@ -544,7 +543,7 @@ onBeforeUnmount(() => {
           :maxlength="AA_MAX_LENGTH"
           placeholder="(´・ω・｀) や ┌────┐ │ AA │ └────┘"
         ></textarea>
-        <div class="aa-actions">
+        <div class="aa-actions" aria-live="polite">
           <button type="button" class="btn btn-sm btn-primary" @click="addCustomStamp">
             ローカルに保存
           </button>
