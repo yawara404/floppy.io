@@ -1,0 +1,19 @@
+# floppy.io — Apache セキュリティヘッダー
+# frontend/public/ に置くと nuxt generate で dist 直下にコピーされる。
+# AllowOverride が有効な環境でのみ有効。
+
+Options -Indexes
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()"
+  Header always set Cross-Origin-Opener-Policy "same-origin"
+  Header always set X-Permitted-Cross-Domain-Policies "none"
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+  # Google Fonts / YouTube / 同一オリジンの API・アップロードのみ許可する。
+  # 別オリジンに API を置く場合は connect-src にその origin を追加する。
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://i.ytimg.com https://*.ytimg.com; media-src 'self' blob:; frame-src https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' http://localhost:* http://127.0.0.1:* http://floppy.io:8080; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+</IfModule>

@@ -1,88 +1,263 @@
-# セキュリティポリシー
+# Security Policy
 
-## サポート対象バージョン
+floppy.io は「1 投稿 = 1.44MB」という制約を守る小さな SNS です。
+小さなサービスだからこそ、認証・入力検証・アップロード・ヘッダー・
+運用設定まで、攻撃面をひとつずつ塞ぐ方針で作っています。
 
-サポート対象は **`master` ブランチの最新コミット** です。
-過去のコミット・スナップショットは対象外です。
+- フロントエンド: Nuxt 4（SPA / 静的生成）
+- API: Python 3.12+ / FastAPI
+- DB: MySQL 8.x（PyMySQL / プレースホルダ）
+- 認証: bcrypt + Bearer トークン
 
-## 脆弱性の報告方法
+## サポート対象
 
-脆弱性を発見した場合は、**公開のIssueには詳細を書かないでください。**
+| バージョン | サポート |
+| --- | --- |
+| `master` の最新コミット | ✅ |
+| 過去のコミット / フォーク / 改変版 | ❌ |
 
-1. GitHubリポジトリの **Security タブ → Report a vulnerability**
-   （プライベート脆弱性報告）から報告するのが推奨です。
-2. 機能しない場合は、リポジトリオーナーへ GitHub 経由で直接ご連絡ください。
+セキュリティ修正は `master` に対して行います。運用者は常に最新の
+`master`（またはリリースタグ）へ追従してください。
 
-### 報告に含める情報
+## 脆弱性の報告
 
-- 問題の概要と、再現手順（または概念実証コード）
-- 影響を受けるファイル・エンドポイント（`backend/api/*.php` / `backend/config/*.php` など）
-- 想定される影響度
+**公開 Issue に脆弱性の詳細を書かないでください。**
 
-### 報告に含めない情報
+1. GitHub の **Security タブ → Report a vulnerability**（Private Vulnerability
+   Reporting）から報告してください。
+2. それが使えない場合は、リポジトリオーナーへ GitHub 経由で直接連絡してください。
 
-- 本物の秘密情報（DB のパスワード・YouTube API キー・API トークン）は貼らないでください。
-  該当する値は報告前に失効・再発行してください。
+### 報告に含めてほしい情報
 
-### 対応の方針
+- 問題の概要と影響（例: 認証回避、他ユーザーの投稿削除、SSRF など）
+- 再現手順または概念実証（PoC）
+- 影響するエンドポイント / ファイル
+  （例: `backend/app/routers/posts.py`, `frontend/app/utils/api.js`）
+- 想定される重大度（CVSS があれば尚可）
+- 検証に使った環境（OS / Python / MySQL / ブラウザ）
 
-- 受領は **2営業日以内** を目安にご連絡します
-- 修正は非公開の環境で準備し、**修正を `master` へ反映した後**に内容を開示します
+### 報告に含めないでください
+
+- 実在する秘密情報（DB パスワード、YouTube API キー、他ユーザーのトークン）
+- 他者の個人情報
+- 破壊的な検証（データ削除・大量投稿・DoS）
+
+秘密情報を誤って送ってしまった場合は、報告前に該当値を失効・再発行してください。
+
+### 対応の目安
+
+| フェーズ | 目安 |
+| --- | --- |
+| 受領連絡 | 2 営業日以内 |
+| 一次トリアージ | 7 日以内 |
+| 修正 / 回避策の提示 | 重大度に応じて協議 |
+| 公開 | 修正反映後、報告者の同意を得て調整 |
+
+修正が完了するまで、詳細の公開はお控えください。
 
 ## 対象範囲
 
-- 対象: 本リポジトリのコード（PHP API / Vue フロントエンド / 設定ファイル）
-- 対象外: 依存する外部サービス自体の問題（YouTube など）
-- 対象外: 運用者側の設定（DB・`.env`・トンネル。運用者側の管理責任です）
+**対象**
 
-## データベース管理画面（Adminer）について
+- `backend/app/` の FastAPI コード
+- `frontend/app/` の Nuxt コード
+- `database/schema.sql`
+- `frontend/public/.htaccess` などの配信設定
+- 認証・アップロード・プレビューなど本リポジトリの実装
 
-`backend/db/index.php` はローカル用の DB 管理画面です。公開サーバーで事故が起きないよう、
-**既定では無効** にしてあります。
+**対象外**
 
-- 環境変数 `FLOPPY_DB_ADMIN_TOKEN` を設定したときだけ動きます（未設定なら常に 403）。
-- 開くときは `?token=<その値>` か `X-Admin-Token` ヘッダでトークンを渡します。
-- DB の接続情報は `FLOPPY_DB_*` 環境変数から読み、**パスワードは画面で入力**します
-  （リポジトリに既定の資格情報を置かないため）。
-- `127.0.0.1` / `::1` のチェックも残していますが、これは補助的なものです。
-  Cloudflare Tunnel やリバースプロキシ経由では `REMOTE_ADDR` が `127.0.0.1` になるため、
-  **IP だけでは保護になりません**（実際の保護はトークン）。
+- MySQL / Python / Node.js / リバースプロキシなど外部ソフトウェア自体の脆弱性
+- YouTube / Google Fonts など外部サービスの問題
+- 運用者側のインフラ設定（TLS 証明書、DB の公開設定、バックアップ等）
+- ソーシャルエンジニアリング、物理的な攻撃
+- ブラウザの開発者ツールやスクリーンショットによる閲覧
+  （コピー抑止は「 deterrent 」であり、完全な防御ではありません）
+
+## セキュリティ対策
+
+### 認証とセッション
+
+- パスワードは **bcrypt（cost 12）** でハッシュ化して保存します。平文は保存しません。
+- 旧 PHP 版の `$2y$` ハッシュも `$2b$` として検証できるよう互換処理を入れています。
+- API トークンは **256bit の乱数**（`secrets.token_hex(32)`）で発行します。
+- トークンは DB に平文で保存せず、**SHA-256 ハッシュ**で保存します。
+  旧バージョンが発行した平文トークンは、初回利用時に自動でハッシュへ移行します。
+- トークンは `Authorization: Bearer <token>` のみで送ります。Cookie は使いません。
+  そのため、Cookie ベースの CSRF は成立しません。
+- `FLOPPY_TOKEN_TTL_DAYS` で有効期限を設定できます（本番は 30 日を推奨）。
+- ログアウト時は該当トークンを DB から削除します。
+
+### 認可
+
+- 投稿削除は「投稿者本人」だけに許可します（`posts.user_id` を SQL 条件に含める）。
+- プロフィール更新・パスワード変更・アバター更新はログインユーザー本人のみ。
+- フォロー中タイムラインはログインユーザーだけが取得できます。
+- 自分自身へのフォローは API 側で拒否します。
+
+### SQL インジェクション
+
+- すべての SQL は PyMySQL のプレースホルダ（`%s`）を使用します。
+- `IN (...)` はプレースホルダを個数分並べて生成します。
+- 検索の `LIKE` は `%` / `_` / `\` をエスケープします。
+- テーブル名・カラム名をユーザー入力から組み立てることはありません。
+
+### XSS
+
+- Vue のテンプレート補間は自動エスケープされます。`v-html` は使用していません。
+- 共有用の埋め込み HTML（`/api/preview`）は、本文・表示名・日時などを
+  `html.escape()` してから組み立てます。
+- 画像 URL・YouTube サムネイル URL は許可された形式のみを出力します。
+- CSP（`frontend/public/.htaccess`）で `object-src 'none'` / `frame-ancestors 'none'`
+  を指定し、外部スクリプトの読み込みを制限します。
+
+### アップロード
+
+- 画像は **マジックバイトから MIME / 拡張子 / 寸法を判定**します
+  （JPEG / PNG / GIF / WebP のみ）。
+- 画像・添付ファイルは 1 ファイル **1.44MB 以下**に制限します。
+- 保存名は **32 桁のランダム hex + 安全な拡張子**で生成し、元のファイル名は
+  DB にのみ保存します（パストラバーサル対策）。
+- 音声として再生できる拡張子以外の添付は **`.bin`** として保存し、
+  実行可能ファイルとして配信されないようにします。
+- 配信時は `X-Content-Type-Options: nosniff` と `Content-Disposition` を設定します。
+- アップロードは公開ディレクトリの外（`backend/uploads/`）に置き、
+  FastAPI の `/uploads/<name>` 経由で配信します。
+
+### DoS / 乱用対策
+
+- ログインは **10 回 / 60 秒 / IP**、登録は **5 回 / 5 分 / IP** に制限します。
+- API のリクエストボディは **約 3.95MB** を超えると 413 を返します。
+- 投稿一覧は最大 200 件、検索も同じ上限です。
+- 1 投稿の容量を超えるリクエストは、ファイル保存前に 403 で拒否します。
+
+> レート制限は単一プロセス内のメモリで実装しています。複数ワーカーで
+> 運用する場合は Redis などの共有ストアに置き換えてください。
+
+### セキュリティヘッダー
+
+`frontend/public/.htaccess`（Apache）で以下を付与します。
+
+| ヘッダー | 値 |
+| --- | --- |
+| `X-Content-Type-Options` | `nosniff` |
+| `X-Frame-Options` | `DENY` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Permissions-Policy` | `geolocation=(), microphone=(), camera=(), payment=()` |
+| `Cross-Origin-Opener-Policy` | `same-origin` |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` |
+| `Content-Security-Policy` | 下記参照 |
+
+CSP は `default-src 'self'` を基本に、Google Fonts・YouTube・同一オリジンの
+API / アップロードだけを許可します。別オリジンに API を置く場合は
+`connect-src` にその origin を追加してください。
+
+FastAPI 側でも `X-Content-Type-Options` / `X-Frame-Options` /
+`Referrer-Policy` / `Permissions-Policy` / `Cache-Control: no-store` を付与します。
+
+### コピー抑止（deterrence）
+
+サイト上の文章・画像・ドット絵について、次のブラウザ操作を抑止しています。
+
+- テキスト選択（`user-select: none`）
+- 右クリックメニュー
+- 画像・Canvas・メディアのドラッグ
+- `Ctrl/Cmd + C` / `Ctrl/Cmd + X`（入力欄・共有リンク・埋め込みコードを除く）
+
+入力欄、共有リンク、埋め込み HTML は通常どおりコピーできます。
+共有ボタンのクリップボード書き込みも動作します。
+
+> **重要**: これはカジュアルなコピーを減らすための UX 上の抑止であり、
+> セキュリティ境界ではありません。HTML ソースの閲覧、開発者ツール、
+> スクリーンショット、OCR、API からの直接取得まで防ぐことはできません。
+> 機密情報はそもそも画面・API に返さない設計にしてください。
+
+### データの取り扱い
+
+- 保存する情報: ユーザー名、表示名、bio、パスワードハッシュ、
+  投稿本文、ドット絵、画像・添付ファイル、いいね、フォロー、API トークン（ハッシュ）。
+- 保存しない情報: メールアドレス、電話番号、位置情報、クレジットカード。
+- アクセスログ: アプリケーションは IP を永続化しません。ただし、
+  リバースプロキシ / Cloudflare / uvicorn のログには IP が残る場合があります。
+  運用者側で保持期間を定めてください。
+- 外部リクエスト: Google Fonts（フォント）、YouTube（サムネイル / 埋め込み）。
+  これらは各サービスのプライバシーポリシーに従います。
+- 解析タグ・広告・トラッカーは設置していません。
+
+### 秘密情報の管理
+
+- `backend/.env` はコミットしません（`.gitignore` 済み）。
+- YouTube API キーはサーバー側の環境変数 `FLOPPY_YOUTUBE_API_KEY` に置き、
+  フロントエンドへ渡しません。
+- DB のパスワードは本番では必ず `FLOPPY_DB_*` で上書きし、
+  開発用の既定値（`floppy` / `floppy`）を使わないでください。
+- `.env` のパーミッションは `600` を推奨します。
 
 ```bash
-# 例: ローカルで管理画面を使う
-FLOPPY_DB_ADMIN_TOKEN=$(python3 -c 'import secrets;print(secrets.token_urlsafe(24))') \
-  php -S localhost:8000
-# → http://localhost:8000/backend/db/index.php?token=<上の値>
+chmod 600 backend/.env
 ```
 
-`backend/db/adminer.php`（Adminer 本体・サードパーティ）はリポジトリに含めません
-（`.gitignore` 済み）。使う場合は [Adminer 公式](https://www.adminer.org/) から
-`adminer.php` を取得して `backend/db/` に置いてください。
+## 本番運用チェックリスト
 
-## コードで実施している対策
+- [ ] **HTTPS** で公開し、HTTP からのリダイレクトと HSTS を有効にする
+- [ ] MySQL は **localhost バインド**。専用ユーザーに
+      `SELECT / INSERT / UPDATE / DELETE` だけを付与する
+      （`GRANT` / `FILE` / `SUPER` は不要）
+- [ ] DB のパスワードを強い値に変更し、`backend/.env` にのみ保存する
+- [ ] `backend/.env` を `600` にする
+- [ ] `FLOPPY_API_DOCS=0`（既定）で API ドキュメントを無効化する
+- [ ] `FLOPPY_TOKEN_TTL_DAYS=30` など、トークンの有効期限を設定する
+- [ ] `FLOPPY_CORS_ORIGINS` を公開オリジンだけに制限する
+      （同一オリジン配信なら CORS 自体が不要）
+- [ ] リバースプロキシで `/api` と `/uploads` だけを FastAPI に転送し、
+      `/api/docs` は本番でブロックする
+- [ ] `backend/uploads/` を公開ディレクトリに置かない
+- [ ] Apache の `AllowOverride` を有効にし、`.htaccess` のヘッダーを反映する
+      （Nginx の場合は同等のヘッダーを `add_header` で設定）
+- [ ] 依存パッケージを更新する
+      （`pip install -r requirements.txt --upgrade`, `npm audit`, `npm update`）
+- [ ] DB の定期バックアップと `backend/uploads/` のバックアップ
+- [ ] ログの保持期間とアクセス権を定める
+- [ ] 変更後は `/api/health` と主要導線（登録→投稿→削除）を確認する
 
-- パスワードは `password_hash` / `password_verify`（PHP 標準）で扱い、平文を保存しない
-- API トークンは `bin2hex(random_bytes(32))`（256bit）で発行し、`api_tokens` テーブルと
-  プリペアドステートメントで照合する（利用ごとに推測できない値）
-- SQL はすべて PDO のプレースホルダ経由（文字列連結で組み立てない。`IN (...)` は
-  `?` を個数ぶん並べる）
-- ログイン必須のエンドポイントは `require_user()` で 401 を返す
-- アップロードは MIME を `finfo` で判定し、許可した画像形式だけを受け付ける。
-  画像以外（フロッピー添付）は実行されないよう常に `.bin` として保存する
-- アップロードのファイル名は元の名前を使わず、日時 + `random_bytes` で生成する
+### Nginx のヘッダー例
 
-## セルフホスト運用者へ
+```nginx
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-Frame-Options "DENY" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()" always;
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+# CSP は .htaccess の値を参考に、配信オリジンに合わせて設定する
+```
 
-floppy.io は自己のサーバー上で運用することを想定しています。
-公開サーバーとして運用する場合、以下は運用者ご自身の責任で行ってください。
+## 既知の制約
 
-- HTTPS での公開（リバースプロキシ・トンネルの利用など）
-- `backend/config/database.php` の既定値（ローカル開発用の `root` / `root`）を
-  **本番では環境変数 `FLOPPY_DB_*` で必ず上書きする**
-- `backend/db/` と `backend/config/` を公開ディレクトリへ置かない
-  （配信するのは `frontend/dist` と `backend/api`・`backend/uploads` だけにする）
-- 依存パッケージとサーバー OS の更新
-- **PHP 本体の更新**: 2026-10-21 に公表された RCE 2件
-  （CVE-2026-109618 / CVE-2026-109619）の修正版
-  **PHP 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35 以降**を使用してください
-  （参考: [PHP セキュリティアドバイザリ](https://www.php.net/archive/2026.php#2026-10-21)）
+- コピー抑止はブラウザ上の deterrent です。完全なコピー防止ではありません。
+- レート制限は単一プロセスのメモリ内です。水平スケール時は共有ストアが必要です。
+- メールアドレスによる本人確認、2 段階認証、パスワードリセットは未実装です。
+- モデレーション（通報・ブロック・NSFW 判定）は未実装です。
+- トークンは既定で無期限です。`FLOPPY_TOKEN_TTL_DAYS` の設定を推奨します。
+- CSP は Nuxt のインラインスクリプト / スタイルを許可するため
+  `'unsafe-inline'` を含みます。nonce ベースへ移行する余地があります。
+
+## 依存関係と更新
+
+```bash
+# Python
+cd backend
+.venv/bin/pip install --upgrade -r requirements.txt
+.venv/bin/pip-audit            # 任意 (pip-audit)
+
+# Node / Nuxt
+cd frontend
+npm audit
+npm update
+npm run build
+```
+
+## 開示方針
+
+- 修正版がリリースされるまで、脆弱性の詳細は公開しません。
+- 報告者の希望に応じて、クレジットを掲載します（匿名可）。
+- 本ポリシーは必要に応じて更新します。最終更新: 2026-11-05。

@@ -8,51 +8,48 @@
 #   ./tools/db.sh < database/schema.sql    # SQL ファイルを流し込む
 #   ./tools/db.sh -e "SHOW TABLES;"        # mysql のオプションを直接指定
 #
-# 接続情報は backend/config/database.php と同じ（root / root / floppy_io）。
-# MAMP / MAMP PRO の MySQL は TCP を無効化していることがあるため、
-# 既定では unix ソケット経由で接続する。
+# 接続情報は backend/.env / 環境変数 (FLOPPY_DB_*) と同じ。
+# 既定: 127.0.0.1:3306 / floppy_io / floppy / floppy
 #
-# 環境変数で上書きできる:
-#   FLOPPY_DB_SOCKET=/path/to/mysql.sock ./tools/db.sh "SHOW TABLES;"
-#   FLOPPY_DB_HOST=127.0.0.1 FLOPPY_DB_PORT=3306 ./tools/db.sh -e "SHOW TABLES;"
+# mysql クライアントは PATH 上のものを使う（MYSQL_BIN で上書き可能）。
 
-MYSQL="${MYSQL_BIN:-/Applications/MAMP/Library/bin/mysql80/bin/mysql}"
-SOCKET="${FLOPPY_DB_SOCKET:-/Applications/MAMP/tmp/mysql/mysql.sock}"
-DB_USER="${FLOPPY_DB_USER:-root}"
-DB_PASS="${FLOPPY_DB_PASS:-root}"
+MYSQL="${MYSQL_BIN:-mysql}"
+DB_HOST="${FLOPPY_DB_HOST:-127.0.0.1}"
+DB_PORT="${FLOPPY_DB_PORT:-3306}"
+DB_USER="${FLOPPY_DB_USER:-floppy}"
+DB_PASS="${FLOPPY_DB_PASS:-floppy}"
 DB_NAME="${FLOPPY_DB_NAME:-floppy_io}"
 
-if [ ! -x "$MYSQL" ]; then
-    echo "mysql コマンドが見つかりません: $MYSQL" >&2
-    echo "MYSQL_BIN 環境変数で指定してください。" >&2
+if ! command -v "$MYSQL" >/dev/null 2>&1; then
+    echo "mysql クライアントが見つかりません: $MYSQL" >&2
+    echo "MySQL をインストールするか、MYSQL_BIN でパスを指定してください。" >&2
     exit 1
 fi
 
-# 接続オプションを付けて mysql を実行する
-mysql_run() {
-    if [ -S "$SOCKET" ]; then
-        "$MYSQL" -u "$DB_USER" -p"$DB_PASS" --socket="$SOCKET" "$@"
-    else
-        "$MYSQL" -u "$DB_USER" -p"$DB_PASS" \
-            -h "${FLOPPY_DB_HOST:-127.0.0.1}" -P "${FLOPPY_DB_PORT:-3306}" "$@"
-    fi
+# パスワードをコマンドライン履歴に残さない
+run_mysql() {
+    MYSQL_PWD="$DB_PASS" "$MYSQL" \
+        -u "$DB_USER" \
+        -h "$DB_HOST" \
+        -P "$DB_PORT" \
+        --default-character-set=utf8mb4 \
+        "$DB_NAME" \
+        "$@"
 }
 
 # 引数なし → 対話シェル
 if [ $# -eq 0 ]; then
-    mysql_run "$DB_NAME"
+    run_mysql
     exit $?
 fi
 
-# 先頭がオプション (-) なら mysql にそのまま渡す（DB 名は先に付ける）
+# 先頭がオプション (-) なら mysql にそのまま渡す
 case "$1" in
     -*)
-        mysql_run "$DB_NAME" "$@"
+        run_mysql "$@"
         exit $?
         ;;
 esac
 
 # それ以外は SQL 文として実行する
-QUERY="$*"
-mysql_run "$DB_NAME" -e "$QUERY"
-exit $?
+run_mysql -e "$*"

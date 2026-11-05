@@ -1,7 +1,16 @@
-# Node
+# Node / Nuxt
 frontend/node_modules/
 frontend/dist/
+frontend/.nuxt/
+frontend/.output/
 npm-debug.log*
+
+# Python
+backend/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+backend/.env
 
 # 環境変数
 .env
@@ -13,16 +22,16 @@ database/floppy_io.sql
 # アップロードされた実ファイル（backend/uploads/.gitignore は残す）
 backend/uploads/*
 !backend/uploads/.gitignore
+!backend/uploads/.gitkeep
 
 # OS
 .DS_Store
 
-# エディタ
-.vscode/
+# エディタ（プロジェクト設定だけ共有する）
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 .idea/
-
-# ローカル専用の設定（API キー等）
-backend/config/*.local.php
 
 # ローカル手順書（公開しない）
 /README.local.md

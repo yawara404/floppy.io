@@ -34,7 +34,8 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- ------------------------------------------------------------
 -- API トークン (Bearer 認証)
--- Cookie を使わないため、Live Server からのクロスオリジンでも動く。
+-- トークンは SHA-256 ハッシュとして保存する (平文は保存しない)。
+-- Cookie を使わないため、同一オリジン / クロスオリジンの両方で動く。
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS api_tokens (
   id         INT UNSIGNED     NOT NULL AUTO_INCREMENT,

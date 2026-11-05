@@ -1,19 +1,19 @@
 {
   "name": "floppy-io-frontend",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "1.44MB レトロ SNS「floppy.io」フロントエンド (Vue 3 + Vite)",
+  "description": "1.44MB レトロ SNS「floppy.io」フロントエンド (Nuxt 4)",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "nuxt dev",
+    "build": "nuxt generate && rm -rf dist && cp -R .output/public dist",
+    "build:subdir": "NUXT_APP_BASE_URL=/floppy.io/ npm run build",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "vue": "^3.4.21"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-vue": "^5.0.4",
-    "vite": "^5.2.8"
+    "nuxt": "^4.6.4",
+    "vue": "^3.5.0"
   }
 }

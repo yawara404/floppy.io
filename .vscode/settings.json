@@ -1,0 +1,31 @@
+{
+  // Nuxtr: Nuxt プロジェクトはワークスペース直下ではなく frontend/ にある。
+  // これを設定しないと Nuxtr が nuxt.config.ts を見つけられず、
+  // サイドバー / コマンド / "Nuxt dev" が有効になりません。
+  "nuxtr.monorepoMode.DirectoryName": "frontend",
+  "nuxtr.defaultPackageManager": "NPM",
+
+  // 開発サーバー: Nuxtr が frontend/ で `npx nuxi dev` を実行する。
+  // URL は http://localhost:5173/ (nuxt.config.ts の devServer.port)
+  //
+  // メモ:
+  // - ポート 3000 は別プロジェクトが使用しているため 5173 にしています。
+  // - 設定変更後はコマンドパレット → "Developer: Reload Window" を実行してください。
+  // - それでも出ない場合は frontend/ を単独で VS Code に開くのが確実です。
+
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.nuxt": true,
+    "**/.output": true,
+    "**/dist": true,
+    "**/.venv": true,
+    "**/__pycache__": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.nuxt/**": true,
+    "**/.output/**": true,
+    "**/.venv/**": true,
+    "**/__pycache__/**": true
+  }
+}
