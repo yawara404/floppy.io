@@ -9,7 +9,7 @@ const props = defineProps({
   posts: { type: Array, default: () => [] },
   emptyText: {
     type: String,
-    default: 'まだ投稿がありません。最初の投稿をしてみましょう 💾',
+    default: 'まだ投稿がありません。最初の 1 枚を書き込んでみましょう。',
   },
 })
 
@@ -131,7 +131,7 @@ async function copyText(text, label) {
     <div v-if="sharePost" class="modal-overlay" @click.self="closeShare">
       <div class="modal-window">
         <div class="modal-head">
-          <span>🔗 共有</span>
+          <span>[LINK] 共有</span>
           <button type="button" class="modal-close" @click="closeShare">
             ×
           </button>

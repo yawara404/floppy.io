@@ -4,7 +4,7 @@ import { computed } from 'vue'
 const props = defineProps({
   used: { type: Number, default: 0 },
   limit: { type: Number, default: 1474560 },
-  label: { type: String, default: '💾 DISK (C:)' },
+  label: { type: String, default: 'DISK (C:)' },
 })
 
 // 残量は表示せず、使用量・上限・使用率という統計だけを見せる
@@ -48,7 +48,7 @@ function fmt(n) {
     <div class="gauge-stats" :class="{ 'gauge-over': over }">
       <span>使用率 <b class="gauge-percent">{{ percentLabel }}%</b></span>
       <span v-if="over">
-        ⚠ 上限を {{ fmt(used - limit) }} bytes 超えています
+        [!] 上限を {{ fmt(used - limit) }} bytes 超えています
       </span>
     </div>
   </div>

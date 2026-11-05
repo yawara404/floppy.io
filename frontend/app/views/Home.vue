@@ -34,8 +34,8 @@ const needsLogin = computed(() => isFollowingFeed.value && !isLoggedIn.value)
 
 const emptyText = computed(() =>
   isFollowingFeed.value
-    ? 'フォロー中のユーザーの投稿はまだありません。気になる人をフォローしてみましょう 💾'
-    : 'まだ投稿がありません。最初の投稿をしてみましょう 💾',
+    ? 'フォロー中のユーザーの投稿はまだありません。気になる人をフォローしてみましょう'
+    : 'まだ投稿がありません。最初の投稿をしてみましょう',
 )
 
 async function load() {
@@ -123,20 +123,36 @@ onMounted(load)
       </div>
 
       <div class="hero-visual" aria-hidden="true">
-        <span class="hero-ring"></span>
-        <div class="floppy-hero">
-          <span class="floppy-hero-gloss"></span>
-          <span class="floppy-shutter"></span>
-          <span class="floppy-hub"></span>
-          <span class="floppy-label">
-            <span class="floppy-label-top">floppy.io</span>
-            <span class="floppy-label-line">1.44 MB / 2HD</span>
-            <span class="floppy-label-meta">16 × 16 PIXEL · 256 B</span>
-            <span class="floppy-label-bars"><i></i><i></i><i></i></span>
-          </span>
+        <span class="hero-pixel-frame"></span>
+
+        <div class="floppy-pixel">
+          <svg
+            class="floppy-pixel-svg"
+            viewBox="0 0 64 64"
+            shape-rendering="crispEdges"
+          >
+            <rect x="9" y="8" width="48" height="52" fill="#b9b3a1" />
+            <rect x="5" y="3" width="48" height="52" fill="#e8e4d2" />
+            <rect
+              x="5"
+              y="3"
+              width="48"
+              height="52"
+              fill="none"
+              stroke="#22252a"
+              stroke-width="2"
+            />
+            <rect x="11" y="3" width="26" height="14" fill="#a9b3aa" />
+            <rect x="11" y="3" width="8" height="14" fill="#30363a" />
+            <rect x="13" y="25" width="32" height="24" fill="#fffdf1" />
+            <rect x="13" y="25" width="32" height="4" fill="#d4cfba" />
+            <rect x="25" y="46" width="8" height="2" fill="#30363a" />
+          </svg>
+          <span class="floppy-pixel-tag">floppy.io<br /><i>1.44MB</i></span>
         </div>
-        <span class="hero-chip chip-a">● READY / DISK 01</span>
-        <span class="hero-chip chip-b">16 × 16 PIXELS</span>
+
+        <span class="hero-chip chip-a">[READY] DISK 01</span>
+        <span class="hero-chip chip-b">16 × 16 DOT</span>
         <span class="hero-chip chip-c">NO ALGORITHM</span>
       </div>
     </section>

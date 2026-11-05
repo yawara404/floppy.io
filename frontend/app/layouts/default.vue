@@ -10,11 +10,16 @@ import ProfileCard from '~/components/ProfileCard.vue'
 
 const route = useRoute()
 const menuOpen = ref(false)
+const moreMenuOpen = ref(false)
+const moreMenuRef = ref(null)
 
 const path = computed(() => route.path || '/')
 const isProfilePage = computed(() => /^\/u\/[^/]+$/.test(path.value))
 const isHome = computed(() => path.value === '/')
 const isFollowing = computed(() => path.value === '/following')
+const isMoreActive = computed(
+  () => path.value === '/settings' || path.value === '/help',
+)
 
 const profileHref = computed(() =>
   isLoggedIn.value ? `/u/${currentUser.value.username}` : '/login',
@@ -25,11 +30,28 @@ watch(
   () => route.fullPath,
   () => {
     menuOpen.value = false
+    moreMenuOpen.value = false
   },
 )
 
+// 三点メニューの外側をクリックしたら閉じる
+function onDocumentClick(event) {
+  if (!moreMenuOpen.value) return
+  if (moreMenuRef.value && !moreMenuRef.value.contains(event.target)) {
+    moreMenuOpen.value = false
+  }
+}
+
+function onKeydown(event) {
+  if (event.key === 'Escape') {
+    menuOpen.value = false
+    moreMenuOpen.value = false
+  }
+}
+
 async function onLogout() {
   menuOpen.value = false
+  moreMenuOpen.value = false
   await logout()
   await navigateTo('/')
 }
@@ -86,6 +108,8 @@ function onCut(event) {
 
 onBeforeUnmount(() => {
   if (copyTimer) clearTimeout(copyTimer)
+  document.removeEventListener('click', onDocumentClick)
+  document.removeEventListener('keydown', onKeydown)
 })
 
 // ハッシュルーターでは href="#main" がルート扱いになるため、
@@ -98,7 +122,11 @@ function skipToMain(event) {
   main.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-onMounted(loadMe)
+onMounted(() => {
+  loadMe()
+  document.addEventListener('click', onDocumentClick)
+  document.addEventListener('keydown', onKeydown)
+})
 </script>
 
 <template>
@@ -109,12 +137,11 @@ onMounted(loadMe)
     @copy="onCopy"
     @cut="onCut"
   >
-    <!-- 背景演出 -->
+    <!-- 背景演出（ピクセルグリッド / ディザ / 走査線） -->
     <div class="app-bg" aria-hidden="true">
-      <span class="bg-glow bg-glow-a"></span>
-      <span class="bg-glow bg-glow-b"></span>
       <span class="bg-grid"></span>
-      <span class="bg-noise"></span>
+      <span class="bg-dither"></span>
+      <span class="bg-scanlines"></span>
     </div>
 
     <a class="skip-link" href="#main" @click="skipToMain">本文へスキップ</a>
@@ -128,17 +155,17 @@ onMounted(loadMe)
           :class="{ open: menuOpen }"
           :aria-expanded="menuOpen ? 'true' : 'false'"
           aria-label="メニュー"
-          @click="menuOpen = !menuOpen"
+          @click="menuOpen = !menuOpen; moreMenuOpen = false"
         >
           <span></span><span></span><span></span>
         </button>
 
         <NuxtLink class="logo" to="/">
           <span class="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M4 3.5h12.6L20 6.9V20.5H4V3.5Z" fill="currentColor" />
-              <rect x="8.2" y="3.5" width="7.6" height="5.6" rx="1" fill="#0a1712" />
-              <rect x="7" y="13" width="10" height="5.8" rx="1" fill="#0a1712" opacity=".88" />
+            <svg viewBox="0 0 16 16" shape-rendering="crispEdges">
+              <rect x="1" y="1" width="14" height="14" fill="currentColor" />
+              <rect x="5" y="1" width="6" height="4" fill="#0b1a12" />
+              <rect x="3" y="8" width="10" height="6" fill="#0b1a12" />
             </svg>
           </span>
           <span class="brand-word">floppy<span class="brand-dot">.</span>io</span>
@@ -166,20 +193,6 @@ onMounted(loadMe)
           >
             プロフィール
           </NuxtLink>
-          <NuxtLink
-            class="nav-link"
-            :class="{ active: path === '/settings' }"
-            to="/settings"
-          >
-            設定
-          </NuxtLink>
-          <NuxtLink
-            class="nav-link"
-            :class="{ active: path === '/help' }"
-            to="/help"
-          >
-            ヘルプ
-          </NuxtLink>
         </nav>
 
         <div class="topbar-user">
@@ -187,16 +200,80 @@ onMounted(loadMe)
             <NuxtLink class="user-chip" :to="'/u/' + currentUser.username">
               <span class="user-led"></span>@{{ currentUser.username }}
             </NuxtLink>
-            <button type="button" class="link-btn topbar-login" @click="onLogout">
-              ログアウト
-            </button>
           </template>
           <template v-else>
-            <NuxtLink class="link-btn topbar-login" to="/login">ログイン</NuxtLink>
-            <NuxtLink class="btn btn-primary btn-sm" to="/register">
-              参加する
-            </NuxtLink>
+            <NuxtLink class="topbar-login" to="/login">ログイン</NuxtLink>
+            <NuxtLink class="topbar-join" to="/register">[ 参加 ]</NuxtLink>
           </template>
+
+          <!-- 設定 / ヘルプ / ログアウトは右端の三点メニューに集約 -->
+          <div ref="moreMenuRef" class="gnav-more">
+            <button
+              type="button"
+              class="gnav-more-btn"
+              :class="{ active: isMoreActive || moreMenuOpen }"
+              :aria-expanded="moreMenuOpen ? 'true' : 'false'"
+              aria-haspopup="menu"
+              aria-label="設定とヘルプ"
+              @click.stop="moreMenuOpen = !moreMenuOpen; menuOpen = false"
+            >
+              <span aria-hidden="true">⋮</span>
+            </button>
+
+            <div v-if="moreMenuOpen" class="gnav-more-menu" role="menu">
+              <div class="gnav-more-head">MENU / FLOPPY.IO</div>
+
+              <NuxtLink
+                class="gnav-more-item"
+                :class="{ active: path === '/settings' }"
+                to="/settings"
+                role="menuitem"
+                @click="moreMenuOpen = false"
+              >
+                <span class="gnav-more-key">SET</span>設定
+              </NuxtLink>
+              <NuxtLink
+                class="gnav-more-item"
+                :class="{ active: path === '/help' }"
+                to="/help"
+                role="menuitem"
+                @click="moreMenuOpen = false"
+              >
+                <span class="gnav-more-key">HLP</span>ヘルプ
+              </NuxtLink>
+
+              <div class="gnav-more-sep" aria-hidden="true"></div>
+
+              <template v-if="isLoggedIn">
+                <button
+                  type="button"
+                  class="gnav-more-item danger"
+                  role="menuitem"
+                  @click="onLogout"
+                >
+                  <span class="gnav-more-key">OUT</span>ログアウト
+                </button>
+              </template>
+              <template v-else>
+                <NuxtLink
+                  class="gnav-more-item"
+                  to="/login"
+                  role="menuitem"
+                  @click="moreMenuOpen = false"
+                >
+                  <span class="gnav-more-key">IN</span>ログイン
+                </NuxtLink>
+                <NuxtLink
+                  class="gnav-more-item"
+                  to="/register"
+                  role="menuitem"
+                  @click="moreMenuOpen = false"
+                >
+                  <span class="gnav-more-key">NEW</span>新規登録
+                </NuxtLink>
+              </template>
+            </div>
+          </div>
         </div>
       </div>
     </header>
@@ -206,7 +283,7 @@ onMounted(loadMe)
 
     <div class="page" :class="{ 'page-profile': isProfilePage }">
       <!-- 左カラム -->
-      <aside class="sidebar">
+      <aside class="sidebar" :class="{ 'sidebar-guest': !isLoggedIn }">
         <ProfileCard v-if="isLoggedIn" :user="currentUser" />
 
         <div v-else class="profile-card login-cta">
@@ -229,7 +306,7 @@ onMounted(loadMe)
           <div class="status-row"><span>NOISE</span><b class="ok">0%</b></div>
         </div>
 
-        <div class="sidebar-note">💾 1 投稿あたり 1.44MB</div>
+        <div class="sidebar-note">[DISK] 1 投稿 = 1.44MB</div>
       </aside>
 
       <!-- 右カラム -->
@@ -243,10 +320,10 @@ onMounted(loadMe)
       <div class="footer-inner">
         <div class="footer-brand">
           <span class="brand-mark brand-mark-sm" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M4 3.5h12.6L20 6.9V20.5H4V3.5Z" fill="currentColor" />
-              <rect x="8.2" y="3.5" width="7.6" height="5.6" rx="1" fill="#0a1712" />
-              <rect x="7" y="13" width="10" height="5.8" rx="1" fill="#0a1712" opacity=".88" />
+            <svg viewBox="0 0 16 16" shape-rendering="crispEdges">
+              <rect x="1" y="1" width="14" height="14" fill="currentColor" />
+              <rect x="5" y="1" width="6" height="4" fill="#0b1a12" />
+              <rect x="3" y="8" width="10" height="6" fill="#0b1a12" />
             </svg>
           </span>
           <div>

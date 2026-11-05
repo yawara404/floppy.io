@@ -169,7 +169,7 @@ watch(() => props.username, load)
 
         <PostList
           :posts="posts"
-          :empty-text="'@' + user.username + ' はまだ投稿していません 💾'"
+          :empty-text="'@' + user.username + ' はまだ投稿していません'"
           @changed="load"
         />
       </section>

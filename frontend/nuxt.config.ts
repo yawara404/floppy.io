@@ -7,7 +7,7 @@
 export default defineNuxtConfig({
   ssr: false,
 
-  devtools: { enabled: false },
+  devtools: { enabled: true },
 
   // Vite 開発サーバー
   devServer: { port: 5173 },
@@ -58,7 +58,7 @@ export default defineNuxtConfig({
         },
         { property: 'og:locale', content: 'ja_JP' },
 
-        { name: 'theme-color', content: '#05070a' },
+        { name: 'theme-color', content: '#cfe9d8' },
         { name: 'color-scheme', content: 'dark' },
 
         { name: 'twitter:card', content: 'summary_large_image' },
@@ -91,7 +91,7 @@ export default defineNuxtConfig({
         },
         {
           rel: 'stylesheet',
-          href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&display=swap',
+          href: 'https://fonts.googleapis.com/css2?family=DotGothic16&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;700&family=Press+Start+2P&display=swap',
         },
       ],
 

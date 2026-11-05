@@ -97,7 +97,7 @@ function fmtDate(s) {
         width="16"
         height="16"
       ></canvas>
-      <span v-else class="post-avatar-fallback" aria-hidden="true">💾</span>
+      <span v-else class="post-avatar-fallback" aria-hidden="true">[F]</span>
     </div>
 
     <div class="post-body">
@@ -106,7 +106,7 @@ function fmtDate(s) {
           {{ post.display_name || post.username }}
         </a>
         <span class="post-handle">@{{ post.username }}</span>
-        <span class="post-bytes">🖴 {{ post.total_bytes.toLocaleString('ja-JP') }} bytes</span>
+        <span class="post-bytes">[B] {{ post.total_bytes.toLocaleString('ja-JP') }} bytes</span>
 
         <!-- 三点メニュー（自分の投稿のみ） -->
         <button
@@ -122,8 +122,10 @@ function fmtDate(s) {
       </div>
 
       <div class="post-subline">
+        <span class="post-no">No.{{ post.id }}</span>
+        <span class="post-dot">/</span>
         <span class="post-date">{{ fmtDate(post.created_at) }}</span>
-        <span class="post-dot">·</span>
+        <span class="post-dot">/</span>
         <span class="post-kind">{{ postKind }}</span>
       </div>
 
@@ -199,7 +201,7 @@ function fmtDate(s) {
           class="post-menu-item danger"
           @click="menuOpen = false; confirming = true"
         >
-          🗑 削除（フォーマット）
+          削除（フォーマット）
         </button>
       </div>
 
@@ -219,7 +221,7 @@ function fmtDate(s) {
           :download="post.floppy_name || 'floppy.bin'"
         >
           <span class="post-floppy-icon" aria-hidden="true">
-            {{ post.floppy_kind === 'audio' ? '🎵' : '💾' }}
+            {{ post.floppy_kind === 'audio' ? '[♪]' : '[F]' }}
           </span>
           <span>
             <span class="post-floppy-name">{{ post.floppy_name || 'floppy.bin' }}</span>

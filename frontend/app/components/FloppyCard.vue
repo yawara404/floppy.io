@@ -51,7 +51,7 @@ watch(() => [props.post?.pixel_data, props.post?.id], render)
           :download="post.floppy_name || 'floppy.bin'"
         >
           <span class="post-floppy-icon" aria-hidden="true">
-            {{ post.floppy_kind === 'audio' ? '🎵' : '💾' }}
+            {{ post.floppy_kind === 'audio' ? '[♪]' : '[F]' }}
           </span>
           <span>
             <span class="post-floppy-name">{{ post.floppy_name || 'floppy.bin' }}</span>
