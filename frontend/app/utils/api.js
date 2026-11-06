@@ -15,6 +15,11 @@ function resolveBase() {
 
 const TOKEN_KEY = 'floppy_token'
 
+// サーバー停止 / DNS 不達 / オフライン時にブラウザが投げる TypeError を
+// そのまま見せると「Failed to fetch」で原因が分からないため差し替える。
+const OFFLINE_MESSAGE =
+  'サーバーに接続できません。時間をおいて再試行してください。'
+
 
 function readToken() {
   try {
@@ -41,13 +46,37 @@ export class ApiError extends Error {
 }
 
 function errorMessage(data, res) {
-  return (
-    data.error ||
-    data.detail ||
-    data.message ||
-    data.statusMessage ||
-    `Request failed (${res.status})`
-  )
+  const message =
+    data.error || data.detail || data.message || data.statusMessage
+
+  if (message) return message
+
+  // リバースプロキシ (nginx / Vite) が返す「API に繋がらない」系のステータス。
+  // 本文が HTML などで JSON でないため、ここで分かりやすい文言に差し替える。
+  if (res.status === 502 || res.status === 503 || res.status === 504) {
+    return OFFLINE_MESSAGE
+  }
+
+  return `Request failed (${res.status})`
+}
+
+/** fetch を実行し、通信断と HTTP エラーを ApiError に正規化する */
+async function fetchJson(url, options) {
+  let res
+  try {
+    res = await fetch(url, options)
+  } catch (e) {
+    // サーバー停止 / DNS 不達 / オフライン (TypeError: Failed to fetch)
+    throw new ApiError(OFFLINE_MESSAGE, 0)
+  }
+
+  const data = await res.json().catch(() => ({}))
+
+  if (!res.ok) {
+    throw new ApiError(errorMessage(data, res), res.status)
+  }
+
+  return data
 }
 
 async function request(path, options = {}) {
@@ -57,14 +86,7 @@ async function request(path, options = {}) {
     headers.Authorization = `Bearer ${authToken}`
   }
 
-  const res = await fetch(resolveBase() + path, { ...options, headers })
-  const data = await res.json().catch(() => ({}))
-
-  if (!res.ok) {
-    throw new ApiError(errorMessage(data, res), res.status)
-  }
-
-  return data
+  return fetchJson(resolveBase() + path, { ...options, headers })
 }
 
 export const apiGet = (path) => request(path)
@@ -85,12 +107,9 @@ export async function apiUpload(path, formData) {
     headers.Authorization = `Bearer ${authToken}`
   }
 
-  const res = await fetch(resolveBase() + path, { method: 'POST', body: formData, headers })
-  const data = await res.json().catch(() => ({}))
-
-  if (!res.ok) {
-    throw new ApiError(errorMessage(data, res), res.status)
-  }
-
-  return data
+  return fetchJson(resolveBase() + path, {
+    method: 'POST',
+    body: formData,
+    headers,
+  })
 }

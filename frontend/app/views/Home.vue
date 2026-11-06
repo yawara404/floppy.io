@@ -6,8 +6,8 @@ import { apiGet } from '~/utils/api'
 import { isLoggedIn, authReady } from '~/composables/useAuth'
 
 const props = defineProps({
-  // 'timeline'  = 全体タイムライン（#/）
-  // 'following' = フォロー中タイムライン（#/following・要ログイン）
+  // 'timeline'  = 全体タイムライン（/）
+  // 'following' = フォロー中タイムライン（/following・要ログイン）
   feed: { type: String, default: 'timeline' },
 })
 

@@ -6,8 +6,8 @@ from fastapi import APIRouter, HTTPException, Request
 
 from ..config import DISK_LIMIT_BYTES
 from ..db import execute, fetch_all, fetch_one
-from ..posts import POST_COLUMNS, attach_likes, with_media
-from ..schemas import PasswordIn, ProfileIn
+from ..posts import POST_COLUMNS, attach_likes, attach_reply_counts, with_media
+from ..schemas import IconPixelIn, PasswordIn, ProfileIn, ReplySettingIn
 from ..security import (
     USER_COLUMNS,
     char_length,
@@ -19,6 +19,7 @@ from ..security import (
     verify_password,
 )
 from ..utils.images import validate_image_data
+from ..utils.pixels import normalize_icon_pixel
 from ..utils.uploads import delete_upload, save_upload
 
 router = APIRouter(prefix="/api", tags=["users"])
@@ -55,7 +56,9 @@ def get_user(request: Request, username: str = "") -> dict:
 
     return {
         "user": user,
-        "posts": attach_likes([with_media(post) for post in posts], me),
+        "posts": attach_reply_counts(
+            attach_likes([with_media(post) for post in posts], me)
+        ),
     }
 
 
@@ -81,6 +84,51 @@ def update_profile(request: Request, payload: ProfileIn) -> dict:
     )
 
     row = fetch_one(f"SELECT {USER_COLUMNS} FROM users WHERE id = %s", (int(user["id"]),))
+    return {"user": public_user(row)}
+
+
+@router.post("/update_icon_pixel")
+def update_icon_pixel(request: Request, payload: IconPixelIn) -> dict:
+    """32×32 のドット絵アイコンを設定する（空文字で未設定に戻す）"""
+    user = require_user(request)
+
+    raw = payload.pixel_data.strip()
+    if raw and (
+        len(raw) != 1024
+        or any(ch not in "0123456789abcdefABCDEF" for ch in raw)
+    ):
+        raise HTTPException(
+            400,
+            "アイコンは 32×32 のドット絵（1024 文字）で指定してください。",
+        )
+
+    # 全透明 (0000...) は「未設定」として扱う
+    pixel = normalize_icon_pixel(raw)
+
+    execute(
+        "UPDATE users SET icon_pixel = %s WHERE id = %s",
+        (pixel, int(user["id"])),
+    )
+
+    row = fetch_one(
+        f"SELECT {USER_COLUMNS} FROM users WHERE id = %s", (int(user["id"]),)
+    )
+    return {"user": public_user(row)}
+
+
+@router.post("/update_reply_setting")
+def update_reply_setting(request: Request, payload: ReplySettingIn) -> dict:
+    """返信の受け付けをオン / オフする（既定はオフ＝返信できない）"""
+    user = require_user(request)
+
+    execute(
+        "UPDATE users SET allow_replies = %s WHERE id = %s",
+        (1 if payload.allow_replies else 0, int(user["id"])),
+    )
+
+    row = fetch_one(
+        f"SELECT {USER_COLUMNS} FROM users WHERE id = %s", (int(user["id"]),)
+    )
     return {"user": public_user(row)}
 
 

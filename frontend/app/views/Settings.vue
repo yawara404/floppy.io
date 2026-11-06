@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { apiPost, apiUpload } from '~/utils/api'
 import { currentUser, isLoggedIn, applyUser, logout } from '~/composables/useAuth'
+import PixelEditor from '../components/PixelEditor.vue'
 
 const AVATAR_LIMIT = 1474560
 
@@ -26,6 +27,20 @@ const avatarMsg = ref('')
 const avatarErr = ref('')
 const savingAvatar = ref(false)
 
+// 返信の受け付け（既定はオフ＝返信できない）
+const repliesEnabled = ref(false)
+const replyMsg = ref('')
+const replyErr = ref('')
+const savingReply = ref(false)
+
+// プロフィールアイコン（32×32 ドット絵）
+const iconPixel = ref('')
+const iconDraft = ref('')
+const iconEditorOpen = ref(false)
+const iconMsg = ref('')
+const iconErr = ref('')
+const savingIcon = ref(false)
+
 // ログイン状態が復元されたらフォームに反映する
 watch(
   currentUser,
@@ -33,10 +48,88 @@ watch(
     if (u) {
       displayName.value = u.display_name || ''
       bio.value = u.bio || ''
+      repliesEnabled.value = Boolean(u.allow_replies)
+      iconPixel.value = u.icon_pixel || ''
     }
   },
   { immediate: true },
 )
+
+function openIconEditor() {
+  iconErr.value = ''
+  iconMsg.value = ''
+  iconDraft.value = iconPixel.value
+  iconEditorOpen.value = true
+}
+
+function cancelIconEditor() {
+  iconDraft.value = iconPixel.value
+  iconErr.value = ''
+  iconEditorOpen.value = false
+}
+
+async function saveIcon() {
+  iconErr.value = ''
+  iconMsg.value = ''
+  savingIcon.value = true
+
+  try {
+    const data = await apiPost('/update_icon_pixel', {
+      pixel_data: iconDraft.value || '',
+    })
+    applyUser(data.user)
+    iconPixel.value = data.user.icon_pixel || ''
+    iconEditorOpen.value = false
+    iconMsg.value = iconPixel.value
+      ? 'プロフィールアイコンを保存しました。'
+      : 'アイコンを未設定に戻しました。'
+  } catch (e) {
+    iconErr.value = e.message
+  } finally {
+    savingIcon.value = false
+  }
+}
+
+async function clearIcon() {
+  iconErr.value = ''
+  iconMsg.value = ''
+  savingIcon.value = true
+
+  try {
+    const data = await apiPost('/update_icon_pixel', { pixel_data: '' })
+    applyUser(data.user)
+    iconPixel.value = ''
+    iconDraft.value = ''
+    iconEditorOpen.value = false
+    iconMsg.value = 'プロフィールアイコンを削除しました。'
+  } catch (e) {
+    iconErr.value = e.message
+  } finally {
+    savingIcon.value = false
+  }
+}
+
+async function toggleReplies(event) {
+  const next = Boolean(event.target.checked)
+  replyMsg.value = ''
+  replyErr.value = ''
+  savingReply.value = true
+
+  try {
+    const data = await apiPost('/update_reply_setting', { allow_replies: next })
+    applyUser(data.user)
+    repliesEnabled.value = Boolean(data.user.allow_replies)
+    replyMsg.value = next
+      ? '返信を受け付けるようにしました。'
+      : '返信を受け付けないようにしました。'
+  } catch (e) {
+    replyErr.value = e.message
+    repliesEnabled.value = Boolean(currentUser.value?.allow_replies)
+    if (event.target) event.target.checked = repliesEnabled.value
+  } finally {
+    savingReply.value = false
+  }
+}
 
 async function saveProfile() {
   profileMsg.value = ''
@@ -164,8 +257,8 @@ async function removeAvatar() {
   <div>
     <div v-if="!isLoggedIn" class="callout">
       <span>設定を変更するにはログインが必要です。</span>
-      <a class="btn btn-primary" href="#/login">ログイン</a>
-      <a class="btn" href="#/register">新規登録</a>
+      <NuxtLink class="btn btn-primary" to="/login">ログイン</NuxtLink>
+      <NuxtLink class="btn" to="/register">新規登録</NuxtLink>
     </div>
 
     <template v-else>
@@ -226,9 +319,74 @@ async function removeAvatar() {
             </div>
 
             <p class="field-handle">
-              未設定のときは、最新投稿のドット絵がアイコンになります。
+              「プロフィールアイコン（32×32 ドット絵）」も未設定のときは、
+              最新投稿のドット絵がアイコンになります。
             </p>
           </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel-title">プロフィールアイコン（32×32 ドット絵）</h2>
+        <p class="panel-note">
+          32×32 のドット絵アイコンを描いて設定できます。設定するとプロフィール画像より
+          優先されます。未設定のときは、最新投稿のドット絵がアイコンになります。
+        </p>
+
+        <p v-if="iconErr" class="msg msg-error" role="alert">{{ iconErr }}</p>
+        <p v-if="iconMsg" class="msg msg-info">{{ iconMsg }}</p>
+
+        <div class="icon-editor-status">
+          <span class="field-label">CURRENT ICON</span>
+          <span class="icon-editor-state">
+            {{ iconPixel ? '32×32 ドット絵を設定中' : '未設定' }}
+          </span>
+        </div>
+
+        <div class="panel-actions">
+          <button
+            type="button"
+            class="btn"
+            @click="iconEditorOpen ? cancelIconEditor() : openIconEditor()"
+          >
+            {{ iconEditorOpen ? 'エディタを閉じる' : '32×32 アイコンを描く' }}
+          </button>
+          <button
+            v-if="iconPixel"
+            type="button"
+            class="link-btn danger"
+            :disabled="savingIcon"
+            @click="clearIcon"
+          >
+            アイコンを削除
+          </button>
+        </div>
+
+        <PixelEditor
+          v-if="iconEditorOpen"
+          v-model="iconDraft"
+          :canvas-width="32"
+          :canvas-height="32"
+          :allow-resize="false"
+        />
+
+        <div v-if="iconEditorOpen" class="panel-actions">
+          <button
+            type="button"
+            class="btn btn-primary"
+            :disabled="savingIcon"
+            @click="saveIcon"
+          >
+            {{ savingIcon ? '保存中…' : 'アイコンを保存' }}
+          </button>
+          <button
+            type="button"
+            class="btn"
+            :disabled="savingIcon"
+            @click="cancelIconEditor"
+          >
+            キャンセル
+          </button>
         </div>
       </section>
 
@@ -276,6 +434,32 @@ async function removeAvatar() {
             {{ savingProfile ? '保存中…' : '保存する' }}
           </button>
         </div>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel-title">返信</h2>
+        <p class="panel-note">
+          オンにすると、あなたの投稿に他のユーザーが返信できるようになります。
+          初期設定はオフ（返信を受け付けない）です。
+        </p>
+
+        <p v-if="replyErr" class="msg msg-error" role="alert">{{ replyErr }}</p>
+        <p v-if="replyMsg" class="msg msg-info">{{ replyMsg }}</p>
+
+        <label class="check-row">
+          <input
+            type="checkbox"
+            :checked="repliesEnabled"
+            :disabled="savingReply"
+            @change="toggleReplies"
+          />
+          <span class="check-row-body">
+            <span class="check-row-title">返信を受け付ける</span>
+            <span class="check-row-state">
+              {{ repliesEnabled ? 'オン — 誰でも返信できます' : 'オフ — 返信できません' }}
+            </span>
+          </span>
+        </label>
       </section>
 
       <section class="panel">

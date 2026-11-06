@@ -2,8 +2,14 @@
 //
 // SSR は使わず SPA として生成する。認証トークンを localStorage に置く
 // 既存の設計と、FastAPI を同一オリジンで叩く構成をそのまま活かすため。
-// ルーティングは静的ホスティング (リバースプロキシ / サブディレクトリ) で
-// リライト設定が不要なハッシュモードを維持する。
+// ルーティングは履歴モード（/u/name, /p/12）。静的配信側では未知パスを
+// index.html にフォールバックさせる（tools/public_gateway.py / .htaccess）。
+// 開発時: フロントエンド (Nuxt :5173) から Python API へ転送する。
+// ポート 8000 が他のアプリと衝突する場合は FLOPPY_API_PORT でずらせる。
+const apiTarget =
+  process.env.FLOPPY_API_TARGET ||
+  `http://127.0.0.1:${process.env.FLOPPY_API_PORT || '8000'}`
+
 export default defineNuxtConfig({
   ssr: false,
 
@@ -110,24 +116,26 @@ export default defineNuxtConfig({
     pageTransition: { name: 'page', mode: 'out-in' },
   },
 
-  // ハッシュルーティング: #/u/name, #/p/12 のような既存 URL を維持する。
+  // 履歴モード: /u/name, /p/12 のような通常のパスで表示する。
   router: {
     options: {
-      hashMode: true,
       scrollBehaviorType: 'smooth',
     },
   },
 
-  // 開発時: フロントエンド (Nuxt :5173) から Python API (:8000) へ転送する
+  // 開発時: フロントエンド (Nuxt :5173) から Python API へ転送する。
+  // ポート 8000 が他のアプリと衝突する場合は次のようにずらせる:
+  //   cd backend && PORT=8001 ./run.sh
+  //   cd frontend && FLOPPY_API_PORT=8001 npm run dev
   vite: {
     server: {
       proxy: {
         '/api': {
-          target: 'http://127.0.0.1:8000',
+          target: apiTarget,
           changeOrigin: true,
         },
         '/uploads': {
-          target: 'http://127.0.0.1:8000',
+          target: apiTarget,
           changeOrigin: true,
         },
       },

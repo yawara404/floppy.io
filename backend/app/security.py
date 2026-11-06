@@ -17,12 +17,26 @@ from .utils.uploads import upload_url
 
 USER_COLUMNS = """id, username, display_name, bio,
   avatar_path, avatar_mime, avatar_bytes, avatar_width, avatar_height,
+  icon_pixel, allow_replies,
   created_at"""
 
 # --- 簡易レート制限 (プロセス内) -------------------------------------------
 # 単一プロセス運用を前提とした軽量な防御。複数ワーカー / 大規模運用では
 # Redis などの共有ストアに置き換えること。
 _RATE_LIMITS: dict[str, deque[float]] = {}
+
+# 長期間動かし続けてもメモリが増え続けないよう、一定回数ごとに
+# 「最後のアクセスが古いバケット」を捨てる（監視カメラ等の IP ローテート対策）。
+_RATE_LIMIT_IDLE_SECONDS = 3600.0
+_RATE_LIMIT_SWEEP_EVERY = 256
+_rate_limit_calls = 0
+
+
+def _sweep_rate_limits(now: float) -> None:
+    for key in list(_RATE_LIMITS):
+        hits = _RATE_LIMITS[key]
+        if not hits or now - hits[-1] > _RATE_LIMIT_IDLE_SECONDS:
+            _RATE_LIMITS.pop(key, None)
 
 
 def rate_limit(
@@ -31,6 +45,8 @@ def rate_limit(
     limit: int = 8,
     window_seconds: int = 60,
 ) -> None:
+    global _rate_limit_calls
+
     client = request.client.host if request.client else "unknown"
     key = f"{bucket}:{client}"
     now = time.monotonic()
@@ -46,6 +62,10 @@ def rate_limit(
         )
 
     hits.append(now)
+
+    _rate_limit_calls += 1
+    if _rate_limit_calls % _RATE_LIMIT_SWEEP_EVERY == 0:
+        _sweep_rate_limits(now)
 
 
 def hash_token(token: str) -> str:
@@ -95,7 +115,8 @@ def current_user(request: Request) -> dict[str, Any] | None:
         user = fetch_one(
             """SELECT u.id, u.username, u.display_name, u.bio,
                       u.avatar_path, u.avatar_mime, u.avatar_bytes,
-                      u.avatar_width, u.avatar_height, u.created_at
+                      u.avatar_width, u.avatar_height, u.icon_pixel,
+                      u.allow_replies, u.created_at
                  FROM api_tokens t
                  JOIN users u ON u.id = t.user_id
                 WHERE t.token = %s"""
@@ -109,7 +130,8 @@ def current_user(request: Request) -> dict[str, Any] | None:
             user = fetch_one(
                 """SELECT u.id, u.username, u.display_name, u.bio,
                           u.avatar_path, u.avatar_mime, u.avatar_bytes,
-                          u.avatar_width, u.avatar_height, u.created_at
+                          u.avatar_width, u.avatar_height, u.icon_pixel,
+                          u.allow_replies, u.created_at
                      FROM api_tokens t
                      JOIN users u ON u.id = t.user_id
                     WHERE t.token = %s"""
@@ -178,18 +200,28 @@ def is_following(follower_id: int, followee_id: int) -> bool:
     return bool(row)
 
 
-def user_avatar_pixel(user_id: int) -> str | None:
+def user_avatar_pixel(user_id: int) -> dict[str, object] | None:
+    """最新の正方形ドット絵投稿をアイコン代わりに使う (32×24 は対象外)"""
     row = fetch_one(
-        """SELECT pixel_data FROM posts
-            WHERE user_id = %s AND pixel_data <> REPEAT('0', 256)
+        """SELECT pixel_data, pixel_width, pixel_height FROM posts
+            WHERE user_id = %s
+              AND pixel_width = pixel_height
+              AND pixel_data <> REPEAT('0', CHAR_LENGTH(pixel_data))
             ORDER BY created_at DESC, id DESC LIMIT 1""",
         (user_id,),
     )
-    return row.get("pixel_data") if row else None
+    if not row:
+        return None
+    return {
+        "pixel": row.get("pixel_data") or "",
+        "width": int(row.get("pixel_width") or 16),
+        "height": int(row.get("pixel_height") or 16),
+    }
 
 
 def public_user(row: dict[str, Any], with_stats: bool = True) -> dict[str, Any]:
     user_id = int(row["id"])
+    avatar = user_avatar_pixel(user_id)
     user: dict[str, Any] = {
         "id": user_id,
         "username": row["username"],
@@ -197,7 +229,14 @@ def public_user(row: dict[str, Any], with_stats: bool = True) -> dict[str, Any]:
         "bio": row["bio"],
         "created_at": row["created_at"],
         "avatar_url": upload_url(row.get("avatar_path")),
-        "avatar_pixel": user_avatar_pixel(user_id),
+        # 最新投稿のドット絵（アイコン未設定時のフォールバック）
+        "avatar_pixel": avatar["pixel"] if avatar else None,
+        "avatar_pixel_width": int(avatar["width"]) if avatar else 0,
+        "avatar_pixel_height": int(avatar["height"]) if avatar else 0,
+        # ユーザーが設定した 32×32 のドット絵アイコン（空は未設定）
+        "icon_pixel": row.get("icon_pixel") or "",
+        # 返信の受け付け（既定はオフ＝返信できない）
+        "allow_replies": bool(int(row.get("allow_replies") or 0)),
     }
 
     if with_stats:

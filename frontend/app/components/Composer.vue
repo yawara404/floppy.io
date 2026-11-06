@@ -4,17 +4,20 @@ import DiskGauge from './DiskGauge.vue'
 import PixelEditor from './PixelEditor.vue'
 import { apiPost, apiUpload } from '~/utils/api'
 import { refreshUser } from '~/composables/useAuth'
+import { blankPixel, pixelIsBlank } from '~/utils/pixel'
 
 const emit = defineEmits(['posted'])
 
 const DISK_LIMIT = 1474560
-const PIXEL_BYTES = 256
-const BLANK_PIXEL = '0'.repeat(256)
+const DEFAULT_PIXEL_WIDTH = 32
+const DEFAULT_PIXEL_HEIGHT = 32
 
 // --- アスキーアートスタンプ ------------------------------------------------
 const AA_STORAGE_KEY = 'floppy_aa_stamps_v1'
+const AA_RECENT_KEY = 'floppy_aa_recent_v1'
 const AA_MAX_LENGTH = 300
 const AA_MAX_STAMPS = 50
+const AA_RECENT_MAX = 12
 
 const AA_GROUPS = [
   {
@@ -67,11 +70,23 @@ const AA_GROUPS = [
 
 const text = ref('')
 const textareaRef = ref(null)
-const pixelData = ref(BLANK_PIXEL)
+const pixelData = ref(blankPixel(DEFAULT_PIXEL_WIDTH, DEFAULT_PIXEL_HEIGHT))
+const pixelWidth = ref(DEFAULT_PIXEL_WIDTH)
+const pixelHeight = ref(DEFAULT_PIXEL_HEIGHT)
+
+// 選択中のキャンバスサイズ（正方形 / Miiverse / クラシック）
+const pixelBytes = computed(() => pixelWidth.value * pixelHeight.value)
+
+function onPixelResize(size) {
+  pixelWidth.value = size.width
+  pixelHeight.value = size.height
+}
 const showEditor = ref(false)
 const showAA = ref(false)
 const aaGroup = ref('kao')
 const customStamps = ref([])
+const recentStamps = ref([])
+const stampQuery = ref('')
 const newStamp = ref('')
 const aaError = ref('')
 const aaNotice = ref('')
@@ -80,9 +95,55 @@ let aaNoticeTimer = null
 const loading = ref(false)
 const error = ref('')
 
-const aaPresets = computed(
-  () => AA_GROUPS.find((group) => group.id === aaGroup.value)?.items || [],
-)
+// よく使う + プリセット + 自作のタブ（LINE のスタンプ一覧を参考）
+const aaTabs = computed(() => [
+  { id: 'recent', label: 'よく使う', count: recentStamps.value.length },
+  ...AA_GROUPS.map((group) => ({
+    id: group.id,
+    label: group.label,
+    count: group.items.length,
+  })),
+  { id: 'custom', label: '自作', count: customStamps.value.length },
+])
+
+const aaPresets = computed(() => {
+  const query = stampQuery.value.trim().toLowerCase()
+
+  let items = []
+  if (aaGroup.value === 'recent') items = recentStamps.value
+  else if (aaGroup.value === 'custom') items = customStamps.value
+  else items = AA_GROUPS.find((group) => group.id === aaGroup.value)?.items || []
+
+  if (!query) return items
+  return items.filter((stamp) => stamp.toLowerCase().includes(query))
+})
+
+const aaEmptyMessage = computed(() => {
+  if (stampQuery.value.trim()) return '該当するスタンプがありません。'
+  if (aaGroup.value === 'recent') {
+    return 'まだ使ったスタンプがありません。スタンプを挿入するとここに並びます。'
+  }
+  if (aaGroup.value === 'custom') {
+    return 'まだ自作スタンプがありません。下の欄から保存できます。'
+  }
+  return 'スタンプがありません。'
+})
+
+function rememberStamp(stamp) {
+  const value = String(stamp || '')
+  if (!value) return
+
+  recentStamps.value = [
+    value,
+    ...recentStamps.value.filter((used) => used !== value),
+  ].slice(0, AA_RECENT_MAX)
+
+  try {
+    window.localStorage.setItem(AA_RECENT_KEY, JSON.stringify(recentStamps.value))
+  } catch {
+    // ローカル保存に失敗しても挿入自体は続行する
+  }
+}
 
 function insertStamp(stamp) {
   const value = String(stamp || '')
@@ -113,6 +174,7 @@ function insertStamp(stamp) {
   const inserted = prefix + value + suffix
 
   text.value = before + inserted + after
+  rememberStamp(value)
 
   nextTick(() => {
     if (!textarea) return
@@ -135,6 +197,19 @@ function loadCustomStamps() {
     }
   } catch {
     customStamps.value = []
+  }
+
+  // 最近使ったスタンプ（よく使うタブ）
+  try {
+    const raw = window.localStorage.getItem(AA_RECENT_KEY)
+    const parsed = raw ? JSON.parse(raw) : []
+    if (Array.isArray(parsed)) {
+      recentStamps.value = parsed
+        .filter((stamp) => typeof stamp === 'string' && stamp.trim() !== '')
+        .slice(0, AA_RECENT_MAX)
+    }
+  } catch {
+    recentStamps.value = []
   }
 }
 
@@ -221,11 +296,11 @@ const floppyBytes = ref(0)
 const floppyError = ref('')
 
 // 容量制限は「1 投稿あたり 1.44MB」。
-// メーターは、いま書いている投稿の消費バイト数（本文 + ドット絵 256 + 画像）を表示する。
+// メーターは、いま書いている投稿の消費バイト数（本文 + ドット絵 + 画像）を表示する。
 const draftBytes = computed(
   () =>
     new TextEncoder().encode(text.value).length +
-    PIXEL_BYTES +
+    pixelBytes.value +
     imageBytes.value +
     floppyBytes.value,
 )
@@ -292,7 +367,7 @@ async function submit() {
 
   if (
     !text.value.trim() &&
-    pixelData.value === BLANK_PIXEL &&
+    pixelIsBlank(pixelData.value) &&
     !imageFile.value &&
     !floppyFile.value
   ) {
@@ -313,6 +388,8 @@ async function submit() {
       const form = new FormData()
       form.append('text', text.value)
       form.append('pixel_data', pixelData.value)
+      form.append('pixel_width', String(pixelWidth.value))
+      form.append('pixel_height', String(pixelHeight.value))
       if (imageFile.value) form.append('image', imageFile.value)
       if (floppyFile.value) form.append('floppy', floppyFile.value)
       data = await apiUpload('/posts', form)
@@ -320,11 +397,13 @@ async function submit() {
       data = await apiPost('/posts', {
         text: text.value,
         pixel_data: pixelData.value,
+        pixel_width: pixelWidth.value,
+        pixel_height: pixelHeight.value,
       })
     }
 
     text.value = ''
-    pixelData.value = BLANK_PIXEL
+    pixelData.value = blankPixel(pixelWidth.value, pixelHeight.value)
     showEditor.value = false
     clearImage()
     clearFloppy()
@@ -459,75 +538,93 @@ onBeforeUnmount(() => {
     <!-- アスキーアートスタンプ (自作は localStorage に保存) -->
     <div v-if="showAA" class="aa-panel">
       <div class="aa-head">
-        <span class="aa-title">[AA] ASCII ART STAMPS</span>
-        <span class="aa-local">LOCAL SAVE</span>
+        <span class="aa-title">[AA] STAMP LIBRARY</span>
+        <div class="aa-head-right">
+          <span class="aa-local">LOCAL SAVE</span>
+          <button type="button" class="link-btn" @click="showAA = false">
+            閉じる ×
+          </button>
+        </div>
+      </div>
+
+      <div class="aa-search-row">
+        <input
+          v-model="stampQuery"
+          class="input aa-search"
+          type="search"
+          placeholder="スタンプを検索（例: 猫, 枠, お祝い）"
+          aria-label="スタンプを検索"
+        />
+        <button
+          v-if="stampQuery"
+          type="button"
+          class="btn btn-sm"
+          @click="stampQuery = ''"
+        >
+          クリア
+        </button>
       </div>
 
       <div class="aa-tabs" role="tablist" aria-label="スタンプの種類">
         <button
-          v-for="group in AA_GROUPS"
-          :key="group.id"
+          v-for="tab in aaTabs"
+          :key="tab.id"
           type="button"
           class="aa-tab"
-          :class="{ active: aaGroup === group.id }"
+          :class="{ active: aaGroup === tab.id }"
           role="tab"
-          :aria-selected="aaGroup === group.id ? 'true' : 'false'"
-          @click="aaGroup = group.id"
+          :aria-selected="aaGroup === tab.id ? 'true' : 'false'"
+          @click="aaGroup = tab.id"
         >
-          {{ group.label }}
-        </button>
-        <button
-          type="button"
-          class="aa-tab"
-          :class="{ active: aaGroup === 'custom' }"
-          role="tab"
-          :aria-selected="aaGroup === 'custom' ? 'true' : 'false'"
-          @click="aaGroup = 'custom'"
-        >
-          自作 ({{ customStamps.length }})
+          {{ tab.label }}
+          <span class="aa-tab-count">{{ tab.count }}</span>
         </button>
       </div>
 
-      <div v-if="aaGroup !== 'custom'" class="aa-grid">
+      <div
+        v-if="recentStamps.length && aaGroup !== 'recent' && !stampQuery"
+        class="aa-recent"
+      >
+        <span class="aa-recent-label">最近使った</span>
         <button
-          v-for="stamp in aaPresets"
-          :key="stamp"
+          v-for="stamp in recentStamps.slice(0, 6)"
+          :key="'recent-' + stamp"
           type="button"
-          class="aa-stamp"
+          class="aa-recent-item"
           :title="stamp"
           @click="insertStamp(stamp)"
         >
-          <pre>{{ stamp }}</pre>
+          {{ stamp }}
         </button>
       </div>
 
-      <div v-else class="aa-custom">
-        <p v-if="customStamps.length === 0" class="aa-empty">
-          まだ自作スタンプがありません。下の欄から保存できます。
-        </p>
-        <div v-else class="aa-grid">
-          <div
-            v-for="(stamp, index) in customStamps"
-            :key="stamp + index"
-            class="aa-stamp-wrap"
+      <p v-if="aaPresets.length === 0" class="aa-empty">
+        {{ aaEmptyMessage }}
+      </p>
+
+      <div v-else class="aa-grid">
+        <div
+          v-for="stamp in aaPresets"
+          :key="stamp"
+          class="aa-stamp-wrap"
+        >
+          <button
+            type="button"
+            class="aa-stamp"
+            :title="stamp"
+            @click="insertStamp(stamp)"
           >
-            <button
-              type="button"
-              class="aa-stamp"
-              :title="stamp"
-              @click="insertStamp(stamp)"
-            >
-              <pre>{{ stamp }}</pre>
-            </button>
-            <button
-              type="button"
-              class="aa-delete"
-              aria-label="このスタンプを削除"
-              @click="removeCustomStamp(index)"
-            >
-              ×
-            </button>
-          </div>
+            <pre>{{ stamp }}</pre>
+          </button>
+          <button
+            v-if="aaGroup === 'custom'"
+            type="button"
+            class="aa-delete"
+            aria-label="このスタンプを削除"
+            @click="removeCustomStamp(customStamps.indexOf(stamp))"
+          >
+            ×
+          </button>
         </div>
       </div>
 
@@ -556,6 +653,12 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <PixelEditor v-if="showEditor" v-model="pixelData" />
+    <PixelEditor
+      v-if="showEditor"
+      v-model="pixelData"
+      :canvas-width="pixelWidth"
+      :canvas-height="pixelHeight"
+      @resize="onPixelResize"
+    />
   </section>
 </template>

@@ -23,7 +23,7 @@ const faqs = [
   },
   {
     q: '共有ボタンは？',
-    a: '各投稿の「共有」を押すと、共有リンクと外部サイトに貼り付けられる HTML スニペットが表示されます。共有リンクは投稿ごとのページ（#/p/ID）を開きます。HTML はプレビュー API（/api/preview）が生成しています。',
+    a: '各投稿の「共有」を押すと、共有リンクと外部サイトに貼り付けられる HTML スニペットが表示されます。共有リンクは投稿ごとのページ（/p/ID）を開きます。HTML はプレビュー API（/api/preview）が生成しています。',
   },
 ]
 </script>
@@ -74,8 +74,8 @@ const faqs = [
       <ul class="help-list">
         <li>ユーザー名は半角英数字とアンダースコア（_）の 3〜20 文字です。</li>
         <li>パスワードは 6 文字以上。ハッシュ化して保存されます。</li>
-        <li>表示名と bio は <a href="#/settings">設定</a> から変更できます。</li>
-        <li>ログアウトは <a href="#/settings">設定</a> から行えます。</li>
+        <li>表示名と bio は <NuxtLink to="/settings">設定</NuxtLink> から変更できます。</li>
+        <li>ログアウトは <NuxtLink to="/settings">設定</NuxtLink> から行えます。</li>
       </ul>
     </section>
   </div>

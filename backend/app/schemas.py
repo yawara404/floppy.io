@@ -33,3 +33,13 @@ class ProfileIn(BaseModel):
 class PasswordIn(BaseModel):
     current_password: str = ""
     new_password: str = ""
+
+
+class ReplySettingIn(BaseModel):
+    # 既定はオフ（返信を受け付けない）
+    allow_replies: bool = False
+
+
+class IconPixelIn(BaseModel):
+    # 32×32 = 1024 文字の 16 進文字列（空で未設定に戻す）
+    pixel_data: str = ""

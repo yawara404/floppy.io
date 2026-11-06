@@ -11,10 +11,10 @@ from ..utils.uploads import absolute_base, absolute_upload_url, floppy_kind
 
 from ..config import DISK_LIMIT_BYTES
 from ..db import execute, fetch_all, fetch_one
-from ..posts import POST_COLUMNS, attach_likes, with_media
+from ..posts import POST_COLUMNS, attach_likes, attach_reply_counts, with_media
 from ..security import current_user, require_user
 from ..utils.images import validate_image_data
-from ..utils.pixels import is_blank_pixel, normalize_pixel
+from ..utils.pixels import is_blank_pixel, normalize_canvas_size, normalize_pixel
 from ..utils.uploads import (
     delete_upload,
     floppy_store_ext,
@@ -46,6 +46,9 @@ def list_posts(
     where: list[str] = []
     params: list[object] = []
 
+    # 返信はスレッドページ（/api/thread）でのみ表示する
+    where.append("p.reply_to_id IS NULL")
+
     if username:
         where.append("u.username = %s")
         params.append(username)
@@ -71,7 +74,9 @@ def list_posts(
     sql += " ORDER BY p.created_at DESC, p.id DESC LIMIT 200"
 
     rows = fetch_all(sql, tuple(params))
-    posts = attach_likes([with_media(row) for row in rows], current_user(request))
+    posts = attach_reply_counts(
+        attach_likes([with_media(row) for row in rows], current_user(request))
+    )
     return {"posts": posts}
 
 
@@ -84,6 +89,9 @@ async def create_post(request: Request) -> dict:
 
     text = ""
     pixel_raw = ""
+    pixel_width_raw = ""
+    pixel_height_raw = ""
+    reply_raw = ""
     image_file = None
     floppy_file = None
 
@@ -91,6 +99,9 @@ async def create_post(request: Request) -> dict:
         form = await request.form()
         text = str(form.get("text") or "")
         pixel_raw = str(form.get("pixel_data") or "")
+        pixel_width_raw = str(form.get("pixel_width") or "")
+        pixel_height_raw = str(form.get("pixel_height") or "")
+        reply_raw = str(form.get("reply_to_id") or "")
         image_file = form.get("image")
         floppy_file = form.get("floppy")
     else:
@@ -101,8 +112,27 @@ async def create_post(request: Request) -> dict:
         if isinstance(payload, dict):
             text = str(payload.get("text") or "")
             pixel_raw = str(payload.get("pixel_data") or "")
+            pixel_width_raw = str(payload.get("pixel_width") or "")
+            pixel_height_raw = str(payload.get("pixel_height") or "")
+            reply_raw = str(payload.get("reply_to_id") or "")
 
-    pixel = normalize_pixel(pixel_raw)
+    # キャンバスは 16×16 / 32×32 / 32×24 のいずれか（不正なら 16×16）
+    pixel_width, pixel_height = normalize_canvas_size(
+        pixel_width_raw or 16, pixel_height_raw or 16
+    )
+    pixel_bytes = pixel_width * pixel_height
+    pixel = normalize_pixel(pixel_raw, pixel_width, pixel_height)
+
+    # 返信先（0 / 空は通常投稿）。返信への返信も同じスレッドにまとめるため、
+    # 実際に保存するのはスレッドのルート投稿 ID になる。
+    reply_target_id = 0
+    if reply_raw.strip():
+        try:
+            reply_target_id = int(reply_raw.strip())
+        except (TypeError, ValueError):
+            raise HTTPException(400, "返信先の投稿 ID が不正です。") from None
+        if reply_target_id <= 0:
+            raise HTTPException(400, "返信先の投稿 ID が不正です。")
 
     image_data = b""
     if image_file is not None and hasattr(image_file, "read"):
@@ -127,6 +157,33 @@ async def create_post(request: Request) -> dict:
         if error:
             raise HTTPException(400, error)
 
+    # 返信先の検証。返信を受け付ける設定（allow_replies）がオフの投稿には
+    # 返信できない。既定はオフなので、本人が設定でオンにした投稿だけが対象。
+    reply_root_id: int | None = None
+    if reply_target_id:
+        target = fetch_one(
+            "SELECT id, reply_to_id FROM posts WHERE id = %s",
+            (reply_target_id,),
+        )
+        if not target:
+            raise HTTPException(404, "返信先の投稿が見つかりません。")
+
+        # 返信への返信も同じスレッド（ルート投稿）にまとめる
+        reply_root_id = int(target["reply_to_id"] or target["id"])
+
+        root = fetch_one(
+            """SELECT u.allow_replies
+                 FROM posts p
+                 JOIN users u ON u.id = p.user_id
+                WHERE p.id = %s""",
+            (reply_root_id,),
+        )
+        if not root:
+            raise HTTPException(404, "返信先の投稿が見つかりません。")
+
+        if not int(root.get("allow_replies") or 0):
+            raise HTTPException(403, "この投稿は返信を受け付けていません。")
+
     if not text and is_blank_pixel(pixel) and not image and not floppy:
         raise HTTPException(
             400,
@@ -136,13 +193,13 @@ async def create_post(request: Request) -> dict:
     text_bytes = len(text.encode("utf-8"))
     image_bytes = len(image_data) if image else 0
     floppy_bytes = int(floppy["bytes"]) if floppy else 0
-    total_bytes = text_bytes + 256 + image_bytes + floppy_bytes
+    total_bytes = text_bytes + pixel_bytes + image_bytes + floppy_bytes
 
     if total_bytes > DISK_LIMIT_BYTES:
         raise HTTPException(
             403,
             "1 投稿あたりの容量上限（1.44MB）を超えています。"
-            f"（本文 {text_bytes:,} + ドット絵 256"
+            f"（本文 {text_bytes:,} + ドット絵 {pixel_bytes}"
             f" + 画像 {image_bytes:,} + フロッピー {floppy_bytes:,} bytes）",
         )
 
@@ -166,15 +223,19 @@ async def create_post(request: Request) -> dict:
     try:
         post_id = execute(
             """INSERT INTO posts
-                (user_id, text, pixel_data, image_path, image_mime, image_bytes,
+                (user_id, reply_to_id, text, pixel_data, pixel_width, pixel_height,
+                 image_path, image_mime, image_bytes,
                  image_width, image_height, youtube_id, youtube_title, youtube_thumbnail,
                  floppy_path, floppy_name, floppy_bytes,
                  text_bytes, pixel_bytes, total_bytes)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
             (
                 int(user["id"]),
+                reply_root_id,
                 text,
                 pixel,
+                pixel_width,
+                pixel_height,
                 image_path,
                 image.mime if image else "",
                 image_bytes,
@@ -187,7 +248,7 @@ async def create_post(request: Request) -> dict:
                 floppy["name"] if floppy else "",
                 floppy_bytes,
                 text_bytes,
-                256,
+                pixel_bytes,
                 total_bytes,
             ),
         )
@@ -203,7 +264,7 @@ async def create_post(request: Request) -> dict:
              WHERE p.id = %s""",
         (post_id,),
     )
-    posts = attach_likes([with_media(row)], user)
+    posts = attach_reply_counts(attach_likes([with_media(row)], user))
 
     return {"post": posts[0]}
 
@@ -230,6 +291,17 @@ def delete_post(request: Request, payload: dict | None = None) -> dict:
     if not row:
         raise HTTPException(404, "投稿が見つかりません。")
 
+    # 返信はフラットなスレッド（reply_to_id = ルート投稿）なので、
+    # ルート投稿を削除するときはスレッド内の返信も一緒に削除する。
+    replies = fetch_all(
+        "SELECT image_path, floppy_path FROM posts WHERE reply_to_id = %s",
+        (post_id,),
+    )
+    execute("DELETE FROM posts WHERE reply_to_id = %s", (post_id,))
+    for reply in replies:
+        delete_upload(reply.get("image_path"))
+        delete_upload(reply.get("floppy_path"))
+
     execute(
         "DELETE FROM posts WHERE id = %s AND user_id = %s",
         (post_id, int(user["id"])),
@@ -237,7 +309,47 @@ def delete_post(request: Request, payload: dict | None = None) -> dict:
     delete_upload(row.get("image_path"))
     delete_upload(row.get("floppy_path"))
 
-    return {"deleted": post_id}
+    return {"deleted": post_id, "deleted_replies": len(replies)}
+
+
+@router.get("/thread")
+def thread(request: Request, id: int = 0) -> dict:
+    """投稿 1 件とそのスレッド（返信一覧）を返す"""
+    if id <= 0:
+        raise HTTPException(400, "投稿 ID が不正です。")
+
+    sql = f"""SELECT {POST_COLUMNS}
+                FROM posts p
+                JOIN users u ON u.id = p.user_id
+               WHERE p.id = %s"""
+
+    row = fetch_one(sql, (id,))
+    if not row:
+        raise HTTPException(404, "投稿が見つかりません。")
+
+    # 返信の ID を指定された場合は、スレッドのルート投稿に寄せる
+    root_id = int(row["reply_to_id"] or row["id"])
+    if root_id != int(row["id"]):
+        row = fetch_one(sql, (root_id,))
+        if not row:
+            raise HTTPException(404, "投稿が見つかりません。")
+
+    replies = fetch_all(
+        f"""SELECT {POST_COLUMNS}
+              FROM posts p
+              JOIN users u ON u.id = p.user_id
+             WHERE p.reply_to_id = %s
+             ORDER BY p.created_at ASC, p.id ASC""",
+        (root_id,),
+    )
+
+    me = current_user(request)
+    post = attach_reply_counts(attach_likes([with_media(row)], me))[0]
+    reply_list = attach_reply_counts(
+        attach_likes([with_media(reply) for reply in replies], me)
+    )
+
+    return {"post": post, "replies": reply_list}
 
 
 @router.get("/preview")
@@ -251,6 +363,8 @@ def preview(request: Request, id: int = 0) -> dict:
                   u.display_name,
                   p.text,
                   p.pixel_data,
+                  p.pixel_width,
+                  p.pixel_height,
                   p.image_path,
                   p.image_bytes,
                   p.image_width,
@@ -277,7 +391,11 @@ def preview(request: Request, id: int = 0) -> dict:
     text = html.escape(str(row["text"] or ""))
     bytes_label = f"{int(row['total_bytes']):,}"
     date = html.escape(str(row["created_at"]))
-    svg = pixel_svg(str(row["pixel_data"]))
+    svg = pixel_svg(
+        str(row["pixel_data"]),
+        int(row.get("pixel_width") or 16),
+        int(row.get("pixel_height") or 16),
+    )
 
     image_url = absolute_upload_url(request, row.get("image_path"))
     image_html = (
@@ -349,6 +467,8 @@ def preview(request: Request, id: int = 0) -> dict:
         "author_name": shown,
         "text": row["text"],
         "pixel_data": row["pixel_data"],
+        "pixel_width": int(row.get("pixel_width") or 16),
+        "pixel_height": int(row.get("pixel_height") or 16),
         "pixel_svg": svg,
         "image_url": image_url,
         "image_bytes": int(row.get("image_bytes") or 0),

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { drawPixel, FLOPPY_AVATAR } from '~/utils/pixel'
+import { drawPixelContained, FLOPPY_AVATAR } from '~/utils/pixel'
 
 const props = defineProps({
   post: { type: Object, required: true },
@@ -17,7 +17,16 @@ function render() {
   // 空白のままになるため、フロッピーアイコンを表示する
   const blank = !/[1-9A-Fa-f]/.test(pixel)
 
-  drawPixel(canvas.value, blank ? FLOPPY_AVATAR : pixel)
+  if (blank) {
+    drawPixelContained(canvas.value, FLOPPY_AVATAR)
+  } else {
+    drawPixelContained(
+      canvas.value,
+      pixel,
+      props.post?.pixel_width,
+      props.post?.pixel_height,
+    )
+  }
 }
 
 onMounted(render)

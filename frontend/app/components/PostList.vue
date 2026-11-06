@@ -5,6 +5,8 @@ import FloppyCard from './FloppyCard.vue'
 import { apiGet, apiPost, apiDelete } from '~/utils/api'
 import { isLoggedIn, currentUser, refreshUser } from '~/composables/useAuth'
 
+const router = useRouter()
+
 const props = defineProps({
   posts: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
@@ -101,11 +103,10 @@ async function toggleLike(post) {
   }
 }
 
-// 投稿ごとの共有リンク（ハッシュルーターの #/p/ID を開く）
+// 投稿ごとの共有リンク（履歴モードの /p/ID を開く）
 function buildShareUrl(post) {
   if (typeof window === 'undefined') return ''
-  const { origin, pathname } = window.location
-  return `${origin}${pathname}#/p/${post.id}`
+  return `${window.location.origin}${router.resolve('/p/' + post.id).href}`
 }
 
 function canDelete(post) {

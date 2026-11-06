@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { drawPixel } from '~/utils/pixel'
+import { drawPixelContained } from '~/utils/pixel'
+import ReplyForm from './ReplyForm.vue'
+import { isLoggedIn } from '~/composables/useAuth'
 
 const props = defineProps({
   post: { type: Object, required: true },
@@ -13,6 +15,20 @@ const canvas = ref(null)
 const playing = ref(false)
 const menuOpen = ref(false)
 const confirming = ref(false)
+const replying = ref(false)
+
+// 返信を受け付けるか（投稿者の設定）。既定はオフ。
+const repliesEnabled = computed(() => props.post.replies_enabled === true)
+
+function toggleReply() {
+  if (!repliesEnabled.value) return
+  replying.value = !replying.value
+}
+
+function onReplied() {
+  props.post.reply_count = (props.post.reply_count || 0) + 1
+  replying.value = false
+}
 
 // ドット絵が描かれていない投稿ではキャンバスを出さない
 const hasPixel = computed(() => /[1-9A-Fa-f]/.test(props.post.pixel_data || ''))
@@ -75,7 +91,14 @@ const localhostUrl = computed(() => {
 })
 
 onMounted(() => {
-  if (hasPixel.value) drawPixel(canvas.value, props.post.pixel_data)
+  if (hasPixel.value) {
+    drawPixelContained(
+      canvas.value,
+      props.post.pixel_data,
+      props.post.pixel_width,
+      props.post.pixel_height,
+    )
+  }
 })
 
 function fmtDate(s) {
@@ -103,9 +126,9 @@ function fmtDate(s) {
 
     <div class="post-body">
       <div class="post-head">
-        <a class="post-user" :href="'#/u/' + post.username">
+        <NuxtLink class="post-user" :to="'/u/' + post.username">
           {{ post.display_name || post.username }}
-        </a>
+        </NuxtLink>
         <span class="post-handle">@{{ post.username }}</span>
         <span class="post-bytes">[B] {{ post.total_bytes.toLocaleString('ja-JP') }} bytes</span>
 
@@ -128,6 +151,12 @@ function fmtDate(s) {
         <span class="post-date">{{ fmtDate(post.created_at) }}</span>
         <span class="post-dot">/</span>
         <span class="post-kind">{{ postKind }}</span>
+        <template v-if="post.reply_to_id">
+          <span class="post-dot">/</span>
+          <NuxtLink class="post-reply-to" :to="'/p/' + post.reply_to_id">
+            RE: #{{ post.reply_to_id }}
+          </NuxtLink>
+        </template>
       </div>
 
       <p v-if="post.text" class="post-text">{{ post.text }}</p>
@@ -252,6 +281,25 @@ function fmtDate(s) {
       <div v-else class="post-actions">
         <button
           type="button"
+          class="link-btn action-btn reply-btn"
+          :disabled="!repliesEnabled"
+          :title="
+            !repliesEnabled
+              ? 'この投稿は返信を受け付けていません'
+              : isLoggedIn
+                ? 'この投稿に返信'
+                : 'ログインして返信'
+          "
+          :aria-expanded="replying ? 'true' : 'false'"
+          @click="toggleReply"
+        >
+          <span aria-hidden="true">↩</span> 返信
+          <span class="reply-count">
+            {{ String(post.reply_count || 0).padStart(2, '0') }}
+          </span>
+        </button>
+        <button
+          type="button"
           class="link-btn action-btn like-btn"
           :class="{ liked: post.liked }"
           :title="post.liked ? 'いいねを取り消す' : 'いいね'"
@@ -271,6 +319,14 @@ function fmtDate(s) {
           <span aria-hidden="true">↗</span> 共有
         </button>
       </div>
+
+      <!-- 返信（インライン） -->
+      <ReplyForm
+        v-if="replying"
+        :post="post"
+        @replied="onReplied"
+        @cancel="replying = false"
+      />
     </div>
   </article>
 </template>

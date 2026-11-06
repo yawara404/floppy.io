@@ -1,8 +1,41 @@
 // floppy.io — ドット絵ユーティリティ
-// 16×16 グリッドの 1 マスを 1 桁の 16 進文字 (0-9A-F) で表し、
-// 256 文字 (= 256 バイト) の文字列として扱う。
+// 1 マス = 1 桁の 16 進文字 (0-9A-F) で表し、幅 × 高さ の文字列として扱う。
+//   16×16 = 256 文字（クラシック）
+//   32×32 = 1024 文字（正方形）
+//   32×24 = 768 文字（Miiverse 風）
+// プロフィールアイコンは 32×32 (1024 文字)。
 
 export const GRID_SIZE = 16
+export const ICON_GRID_SIZE = 32
+
+// 投稿のドット絵で選べるキャンバス
+export const CANVAS_PRESETS = [
+  { id: 'square', label: '正方形', width: 32, height: 32 },
+  { id: 'miiverse', label: 'Miiverse', width: 32, height: 24 },
+  { id: 'classic', label: 'クラシック', width: 16, height: 16 },
+]
+
+/** キャンバスサイズを決定する（指定が無ければ文字数から推定） */
+export function pixelSize(data, width, height) {
+  const w = Number(width)
+  const h = Number(height)
+  if (w > 0 && h > 0) return { width: w, height: h }
+
+  const len = String(data || '').length
+  if (len === 1024) return { width: 32, height: 32 }
+  if (len === 768) return { width: 32, height: 24 }
+  return { width: GRID_SIZE, height: GRID_SIZE }
+}
+
+/** 全透明（＝未描画）かどうか */
+export function pixelIsBlank(data) {
+  return !/[1-9A-Fa-f]/.test(String(data || ''))
+}
+
+/** 指定サイズの全透明ドット絵を作る */
+export function blankPixel(width = GRID_SIZE, height = GRID_SIZE) {
+  return '0'.repeat(width * height)
+}
 
 // 16 色パレット (インデックス 0〜15)。バックエンドの PIXEL_PALETTE と一致。
 export const PALETTE = [
@@ -24,9 +57,11 @@ export const PALETTE = [
   '#800080', // F 紫
 ]
 
-/** pixel_data 文字列 (256 文字) をインデックス配列 (256 要素) に変換 */
-export function parsePixelData(str) {
-  const out = new Array(GRID_SIZE * GRID_SIZE).fill(0)
+/** pixel_data 文字列をインデックス配列に変換 */
+export function parsePixelData(str, width = GRID_SIZE, height = GRID_SIZE) {
+  const w = Number(width) || GRID_SIZE
+  const h = Number(height) || GRID_SIZE
+  const out = new Array(w * h).fill(0)
   if (!str) return out
   const s = String(str).toUpperCase()
   for (let i = 0; i < out.length; i++) {
@@ -38,7 +73,7 @@ export function parsePixelData(str) {
   return out
 }
 
-/** インデックス配列 (256 要素) を pixel_data 文字列に変換 */
+/** インデックス配列を pixel_data 文字列に変換 */
 export function toPixelData(grid) {
   return grid.map((i) => i.toString(16).toUpperCase()).join('')
 }
@@ -66,18 +101,56 @@ export const FLOPPY_AVATAR = [
 
 /**
  * 指定した canvas に pixel_data を描画する。
- * canvas は 16×16 ピクセル (cell=1) で描画し、CSS 側で拡大表示する。
+ * 幅・高さを指定しない場合は文字数から自動判定する。
+ * canvas は 1 マス = 1 ピクセルで描画し、CSS 側で拡大表示する。
  */
-export function drawPixel(canvas, data) {
+export function drawPixel(canvas, data, width, height) {
   if (!canvas) return
   const ctx = canvas.getContext('2d')
-  const grid = parsePixelData(data)
-  canvas.width = GRID_SIZE
-  canvas.height = GRID_SIZE
+  const size = pixelSize(data, width, height)
+  const grid = parsePixelData(data, size.width, size.height)
+  canvas.width = size.width
+  canvas.height = size.height
   for (let i = 0; i < grid.length; i++) {
-    const x = i % GRID_SIZE
-    const y = Math.floor(i / GRID_SIZE)
+    const x = i % size.width
+    const y = Math.floor(i / size.width)
     ctx.fillStyle = PALETTE[grid[i]]
     ctx.fillRect(x, y, 1, 1)
+  }
+}
+
+/**
+ * 正方形の枠（アイコンなど）に、縦横比を保ったまま描画する。
+ * 32×24 のような横長キャンバスは上下に白い余白が入る。
+ */
+export function drawPixelContained(canvas, data, width, height) {
+  if (!canvas) return
+
+  const size = pixelSize(data, width, height)
+  if (size.width === size.height) {
+    drawPixel(canvas, data, size.width, size.height)
+    return
+  }
+
+  const ctx = canvas.getContext('2d')
+  const grid = parsePixelData(data, size.width, size.height)
+  const side = Math.max(size.width, size.height)
+  const offsetX = Math.floor((side - size.width) / 2)
+  const offsetY = Math.floor((side - size.height) / 2)
+
+  canvas.width = side
+  canvas.height = side
+
+  ctx.fillStyle = PALETTE[0]
+  ctx.fillRect(0, 0, side, side)
+
+  for (let i = 0; i < grid.length; i++) {
+    ctx.fillStyle = PALETTE[grid[i]]
+    ctx.fillRect(
+      offsetX + (i % size.width),
+      offsetY + Math.floor(i / size.width),
+      1,
+      1,
+    )
   }
 }

@@ -22,15 +22,27 @@ UI そのもので表現しています。ホームは「タイムライン / �
 
 👉 **<https://fdd.wawa-app.me/floppy.io/>**
 
-Cloudflare Tunnel 経由で、静的配信（Nginx / Apache）と FastAPI に振り分けています。
-バックエンドは FastAPI のみです。
+Cloudflare Tunnel `floppy` から、ローカルのゲートウェイ (`tools/public_gateway.py`)
+へ流し、静的ファイルと FastAPI を振り分けています（Apache / nginx の ProxyPass 相当）。
 
 ```text
-~/Quadtecho/floppy.io/
-├── index.html, _nuxt/, config.js, favicon.png, card.png  -> frontend/dist へのリンク
-├── api      -> ProxyPass → http://127.0.0.1:8000/api      (FastAPI)
-└── uploads  -> ProxyPass → http://127.0.0.1:8000/uploads  (FastAPI)
+ブラウザ
+  → Cloudflare (fdd.wawa-app.me) → トンネル floppy
+    → http://127.0.0.1:8899 (tools/public_gateway.py)
+       ├── /floppy.io/             → frontend/dist（Nuxt の静的ビルド）
+       ├── /floppy.io/api/...      → http://127.0.0.1:8001/api/...     (FastAPI)
+       └── /floppy.io/uploads/...  → http://127.0.0.1:8001/uploads/... (FastAPI)
 ```
+
+```bash
+./tools/public.sh start     # API(:8001) + ゲートウェイ(:8899) + トンネル
+./tools/public.sh status    # ローカル 3 点 + 公開 URL を確認
+./tools/public.sh stop
+./tools/public.sh setup     # トンネル / DNS を作り直すとき（初回のみ）
+```
+
+> ポート 8000 は他プロジェクト（Midair.io）が使っているため、floppy.io の API は
+> **8001** で動かします。開発時は `FLOPPY_API_PORT=8001 npm run dev` で合わせられます。
 
 ## SNS カード（OGP / Twitter Card）
 
@@ -57,14 +69,14 @@ URL を貼るとサイトのカードが展開されます。OGP は業界標準
 tools/make-og-card.sh    # tools/og-card.html → frontend/public/card.png
 ```
 
-> ⚠️ ハッシュルーティング（`#/p/12`）は X がフラグメントを無視するため、
-> 投稿ごとのカードには対応していません（サイト共通のカードになります）。
+> ⚠️ カードはサイト共通です。SPA（`ssr: false`）のため X などのクローラーは
+> ページ本文を実行せず、投稿ごとの OGP カードは生成していません。
 
 ## 技術スタック
 
 | レイヤー | 技術 |
 | --- | --- |
-| フロントエンド | Nuxt 4 (Vue 3 Composition API / SPA / ハッシュルーティング) |
+| フロントエンド | Nuxt 4 (Vue 3 Composition API / SPA / 履歴モード) |
 | スタイル | 独自 CSS「RETRO BBS / EARLY TWITTER / MIXI2」（生成り・ミント・青リンク・ドット枠） |
 | 描画 | HTML5 Canvas API（外部描画ライブラリ不使用） |
 | バックエンド | Python 3.12+ / FastAPI（RESTful JSON API） |
@@ -77,9 +89,12 @@ tools/make-og-card.sh    # tools/og-card.html → frontend/public/card.png
 - **容量制限（1 投稿あたり）**: 投稿時に本文の UTF-8 バイト長と
   ドット絵データのバイト長を合算し、**その投稿の合計**が `1,474,560 Bytes` を超える
   場合は HTTP **403** で弾く。累計では制限しない。
-- **ドット絵の超軽量データ化**: 16×16（計 256 マス）。画像ファイルには変換せず、
-  「カラーコードのインデックス配列」を **16 進数 256 文字（= 256 バイト）** の文字列
-  として DB に保存する。各文字 `0-9A-F` が 16 色パレットの 1 色に対応。
+- **ドット絵の超軽量データ化**: 画像ファイルには変換せず、
+  「カラーコードのインデックス配列」を 16 進文字列として DB に保存する。
+  各文字 `0-9A-F` が 16 色パレットの 1 色に対応。キャンバスは 3 種類:
+  - **正方形（32×32 = 1,024 マス / 1,024 バイト）**
+  - **Miiverse（32×24 = 768 マス / 768 バイト・4:3）**
+  - **クラシック（16×16 = 256 マス / 256 バイト・旧データ互換）**
 
 ## ディレクトリ構成
 
@@ -100,7 +115,7 @@ floppy_io/
 │   │   │   ├── social.py           # いいね / フォロー
 │   │   │   └── uploads.py          # /uploads/<name> の配信
 │   │   └── utils/
-│   │       ├── pixels.py           # 16×16 / 256 バイトのドット絵
+│   │       ├── pixels.py           # ドット絵 (16×16 / 32×32 / 32×24 / 32×32 アイコン)
 │   │       ├── images.py           # 画像の MIME / 寸法判定
 │   │       ├── uploads.py          # ファイル保存 / URL
 │   │       └── youtube.py          # YouTube Data API v3 連携
@@ -109,7 +124,8 @@ floppy_io/
 │   ├── .env.example
 │   └── run.sh                      # venv 作成 + uvicorn 起動
 ├── database/
-│   └── schema.sql                  # MySQL DDL（＋デモユーザー投入）
+│   ├── schema.sql                  # MySQL DDL（＋デモユーザー投入）
+│   └── migrations/                 # 既存 DB 向けの追加マイグレーション
 ├── frontend/
 │   ├── app/
 │   │   ├── app.vue                 # Nuxt ルート
@@ -160,6 +176,35 @@ mysql -u root -p -e "
 
 > MySQL は標準の **127.0.0.1:3306** で起動している前提です。
 > 接続先は `backend/.env` の `FLOPPY_DB_*` で変更できます。
+
+#### 既存の DB を最新スキーマへ更新する
+
+旧バージョン（PHP 版）の DB をそのまま使うと `follows` テーブルが無く、
+**ログイン / 新規登録が 503** になります（`public_user()` が
+`follows` を参照するため）。`database/schema.sql` は
+`CREATE TABLE IF NOT EXISTS` だけで構成されているので、流し込むだけで
+既存データを残したまま不足テーブルを追加できます。
+
+```bash
+mysql -u root -p < database/schema.sql
+```
+
+適用後は `/api/health` と `/login` でログインできることを確認してください。
+
+#### 返信・アイコン・キャンバス拡張を既存 DB に追加する
+
+`database/schema.sql` は `CREATE TABLE IF NOT EXISTS` のため、**既存テーブルに
+新しいカラムは追加されません**。返信（`allow_replies` / `reply_to_id`）、
+32×32 アイコン（`icon_pixel`）、ドット絵キャンバス（`pixel_width` / `pixel_height`）
+を使うには、マイグレーションを順に 1 回ずつ適用します。
+
+```bash
+mysql -u root -p < database/migrations/2026-11-05-replies.sql
+mysql -u root -p < database/migrations/2026-11-06-canvas.sql
+```
+
+（`ALTER TABLE` は DB の所有者権限が必要です。API 用ユーザー `floppy` では
+実行できないため、`root` などで実行してください。）
 
 ### 2. Python API (FastAPI)
 
@@ -217,20 +262,103 @@ npm run build:subdir        # /floppy.io/ 配下に置く場合
 `FLOPPY_PUBLIC_BASE_URL=https://example.com/floppy.io/` を設定すると、
 共有用 HTML の URL が正しくなります。
 
-## 画面と URL（ハッシュルーティング）
+## 運用 / 障害対策
+
+### 自動再起動（落ちても復帰する）
+
+| 環境 | 方法 |
+| --- | --- |
+| 開発 (macOS / Linux) | `cd backend && ./serve.sh`（異常終了したら 3 秒後に自動再起動） |
+| macOS 常駐 | `deploy/com.floppy.api.plist` を `~/Library/LaunchAgents/` に置いて `launchctl load` |
+| Linux 本番 | `deploy/floppy-api.service` を `/etc/systemd/system/` に置いて `systemctl enable --now floppy-api` |
+
+- `./run.sh` は開発用（`--reload` あり・自動再起動なし）です。常駐には `./serve.sh` か
+  `deploy/` の設定を使ってください。
+- どちらのスクリプトも、ポートが使用中なら**どのプロセスが握っているか**を表示して終了します
+  （別ポートで動かす場合は `PORT=8001 ./run.sh` と `FLOPPY_API_PORT=8001 npm run dev`）。
+- ログは `backend/logs/api.log` に残ります（`backend/logs/` は `.gitignore` 済み）。
+
+### 公開スタック（URL）の自動復旧
+
+公開サイトは「API + ゲートウェイ + Cloudflare Tunnel」の 3 つで動いています。
+`deploy/com.floppy.public.plist` を launchd に入れると、**1 分ごと**に
+`tools/public.sh ensure` が走り、落ちているものだけが復旧します（ログイン時にも実行）。
+
+```bash
+mkdir -p logs
+cp deploy/com.floppy.public.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.floppy.public.plist
+launchctl list | grep com.floppy.public     # 動いているか確認
+```
+
+- 停止するとき: `launchctl unload ~/Library/LaunchAgents/com.floppy.public.plist`
+- ログ: `logs/launchd.log` / `logs/tunnel.log` / `logs/gateway.log`
+
+> ポイント: この plist には `AbandonProcessGroup=true` が必要です。無いと
+> `ensure` が起動した API / ゲートウェイ / トンネルが、ジョブ終了時に巻き添えで
+> 停止してしまいます。
+
+### 死活監視
+
+```bash
+./tools/healthcheck.sh              # 0 = 正常 / 1 = 異常（ローカル API）
+./tools/healthcheck.sh --restart    # 異常時に FLOPPY_RESTART_CMD を実行
+
+# 公開 URL も含めて確認する
+./tools/healthcheck.sh https://fdd.wawa-app.me/floppy.io/api/health
+./tools/public.sh status
+```
+
+`/api/health` は DB 接続・不足テーブル・ディスク残量・稼働時間を返し、異常時は **503** を
+返します。外部の監視サービスや cron から叩いてください。
+
+```bash
+# 5 分ごとに公開 URL を監視し、落ちていたら公開スタックごと復旧する例
+*/5 * * * * cd /path/to/floppy_io && FLOPPY_RESTART_CMD="$PWD/tools/public.sh ensure" ./tools/healthcheck.sh --restart https://fdd.wawa-app.me/floppy.io/api/health >> logs/health.log 2>&1
+```
+
+### URL にアクセスできないとき
+
+1. `./tools/public.sh status` — API / ゲートウェイ / トンネル / 公開 URL の 4 点を確認
+2. **HTTP 530**（Cloudflare のトンネル未接続）→ `./tools/public.sh start`、`tail -30 logs/tunnel.log`
+3. **HTTP 502**（ゲートウェイは動いているが API が死んでいる）→ `tail -30 backend/logs/api.log`
+4. `host fdd.wawa-app.me` が **NXDOMAIN** → DNS レコードが消えている（サーバー側は正常）。
+   次のどちらかで復旧する:
+   ```bash
+   # A. コマンドで作り直す（CNAME が別トンネルを向いている場合も上書きされる）
+   ./tools/public.sh setup
+
+   # B. Cloudflare ダッシュボード → wawa-app.me → DNS → fdd の CNAME を
+   #    ~/.cloudflared/floppy.yml のトンネル (tunnel: floppy) に向け直す
+   ```
+5. `tail -50 backend/logs/api.log` / `mysqladmin -u floppy -p ping` — アプリ / DB の確認
+
+> 実例: `fdd.wawa-app.me` が **NXDOMAIN** になり公開サイトが見えなくなりました。
+> ドメイン本体 `wawa-app.me` は 200 を返していたため「アプリではなく DNS」と切り分け、
+> `./tools/public.sh setup` でトンネルと CNAME を作り直して復旧しました。
+> なお `cloudflared tunnel route dns` は `--config` を省くと既定の
+> `~/.cloudflared/config.yml` を読むため、**別トンネル向けの CNAME** が作られることがあります
+> （`setup` は `--config` を明示して回避しています）。
+
+## 画面と URL（履歴モード）
 
 | パス | 画面 |
 | --- | --- |
-| `#/` | ホーム（タイムライン＋投稿フォーム） |
-| `#/following` | フォロー中タイムライン（自分＋フォロー中ユーザーの投稿・要ログイン） |
-| `#/search?q=...` | 検索（本文・ユーザー名・表示名の部分一致） |
-| `#/u/:username` | プロフィール（自分・他ユーザーどちらも） |
-| `#/p/:id` | 共有された投稿（1 投稿だけを表示する共有ページ） |
-| `#/settings` | 設定（表示名 / bio / パスワード変更 / ログアウト） |
-| `#/help` | ヘルプ |
-| `#/login` / `#/register` | ログイン / 新規登録 |
+| `/` | ホーム（タイムライン＋投稿フォーム） |
+| `/following` | フォロー中タイムライン（自分＋フォロー中ユーザーの投稿・要ログイン） |
+| `/search?q=...` | 検索（本文・ユーザー名・表示名の部分一致） |
+| `/u/:username` | プロフィール（自分・他ユーザーどちらも） |
+| `/p/:id` | 共有された投稿とスレッド（返信一覧） |
+| `/settings` | 設定（表示名 / bio / 32×32 アイコン / 返信の可否 / パスワード変更 / ログアウト） |
+| `/help` | ヘルプ |
+| `/login` / `/register` | ログイン / 新規登録 |
 
-サーバー側のリライトが不要なハッシュ方式なので、静的配信でもそのまま動きます。
+`#/p/12` のような**旧ハッシュURLは自動で `/p/12` にリダイレクト**されます
+（`frontend/app/plugins/legacy-hash.client.js`）。
+
+履歴モードのため、静的配信側で**未知パスを `index.html` にフォールバック**する設定が
+必要です。このリポジトリの公開ゲートウェイ（`tools/public_gateway.py`）は対応済みで、
+Apache 用の `.htaccess` にもリライトを同梱しています。
 
 ## アカウント
 
@@ -239,8 +367,12 @@ npm run build:subdir        # /floppy.io/ 配下に置く場合
 - パスワードは `password_hash()`（bcrypt）でハッシュ化して保存します。
 - 認証は **Bearer トークン**方式（`localStorage` に保持）です。Cookie を使わないため、
   別オリジン（静的配信サーバーなど）からでもそのまま動きます。
-- プロフィールアイコンは **設定 → プロフィール画像** から画像に変更できます
-  （未設定のときは、そのユーザーの最新投稿のドット絵 → フロッピーの絵 の順に使われます）。
+- プロフィールアイコンは **設定 → プロフィールアイコン（32×32 ドット絵）** で描くか、
+  **設定 → プロフィール画像** から画像に変更できます。表示の優先順位は
+  **32×32 アイコン → プロフィール画像 → 最新投稿のドット絵 → フロッピーの絵** です。
+- 自分のプロフィール画面（`/u/:username`）の **「プロフィールを編集」** からも、
+  表示名 / bio / プロフィール画像 / 32×32 アイコンをその場で編集できます
+  （保存するとプロフィール表示とサイドバーが更新されます）。
 - デモアカウント: ユーザー名 `floppy` / パスワード `floppy`
 
 ## プロフィール画像
@@ -249,6 +381,30 @@ npm run build:subdir        # /floppy.io/ 配下に置く場合
 - 実ファイルは投稿画像と同じ `backend/uploads/` に保存し、`users.avatar_path` などに記録します。
 - 置き換え・削除のときは古いファイルも削除します。
 - プロフィール画像は**投稿の容量制限（1 投稿 1.44MB）とは別枠**です。
+
+## プロフィールアイコン（32×32 ドット絵）
+
+- 設定ページの「32×32 アイコンを描く」から、**32×32 のドット絵アイコン**を描いて保存できます。
+- 1 マス = 1 桁の 16 進文字（0-9A-F、16 色）で `users.icon_pixel` に
+  **1024 文字**として保存します。全消去（全透明）で保存すると未設定に戻ります。
+- 設定するとプロフィール画像より優先されます。未設定のときは
+  「プロフィール画像 → 最新投稿のドット絵 → フロッピーの絵」の順に使われます。
+- 画像ファイルと同様、投稿の容量制限（1 投稿 1.44MB）とは別枠です。
+
+## 返信（リプライ）
+
+- 各投稿の「↩ 返信」から、その投稿への返信を書けます（返信はテキストのみ）。
+- **返信は既定でオフ（返信を受け付けない）** です。設定ページの「返信」で
+  「返信を受け付ける」をオンにしたユーザーの投稿だけに返信できます。
+  オフのままの投稿に返信しようとすると API は **403** を返します。
+- 返信も 1 投稿として `posts` に保存します（容量は 1.44MB の制限対象）。
+  `posts.reply_to_id` に**スレッドのルート投稿 ID** を保持するフラットなスレッドです。
+  返信への返信も同じスレッドにまとまります。
+- タイムライン / 検索 / フォロー中 TL には通常投稿だけを表示し、返信は
+  共有ページ（`/p/:id`）のスレッドに表示します。プロフィールには返信も表示し、
+  `RE: #ID` のリンクが付きます。
+- ルート投稿を削除すると、そのスレッドの返信もまとめて削除します
+  （添付ファイルも削除）。返信の削除は自分の投稿のみ可能です。
 
 ## YouTube 埋め込み
 
@@ -270,11 +426,14 @@ npm run build:subdir        # /floppy.io/ 配下に置く場合
 | `GET`  | `/api/me` | ログイン中ユーザー（要ログイン） |
 | `POST` | `/api/update_profile` | 表示名 / bio 更新（要ログイン） |
 | `POST` | `/api/update_avatar` | プロフィール画像の設定 / 削除（要ログイン・multipart） |
+| `POST` | `/api/update_icon_pixel` | 32×32 ドット絵アイコンの設定 / 削除 `{ pixel_data }`（要ログイン） |
+| `POST` | `/api/update_reply_setting` | 返信の受け付けオン / オフ `{ allow_replies }`（要ログイン） |
 | `POST` | `/api/change_password` | パスワード変更（要ログイン） |
 | `GET`  | `/api/user?username=floppy` | プロフィール＋その人の投稿 |
 | `GET`  | `/api/posts[?username=floppy][&q=キーワード]` | 投稿一覧（新しい順 / 検索） |
 | `GET`  | `/api/posts?feed=following` | フォロー中タイムライン＝自分＋フォロー中ユーザーの投稿（要ログイン） |
-| `POST` | `/api/posts` | 新規投稿 `{ text, pixel_data }` / `multipart/form-data`（`image` `floppy` 添付可・要ログイン） |
+| `POST` | `/api/posts` | 新規投稿 `{ text, pixel_data, pixel_width?, pixel_height?, reply_to_id? }` / `multipart/form-data`（`image` `floppy` 添付可・要ログイン） |
+| `GET`  | `/api/thread?id=123` | 投稿 1 件とスレッド（返信一覧） |
 | `POST` | `/api/delete_post` | 自分の投稿を削除 `{ id }`（要ログイン） |
 | `POST` | `/api/like` | いいねの付け外し `{ id }`（要ログイン・トグル） |
 | `POST` | `/api/follow` | フォローの付け外し `{ username }` または `{ id }`（要ログイン・トグル） |
@@ -283,12 +442,13 @@ npm run build:subdir        # /floppy.io/ 配下に置く場合
 
 ## 容量の考え方
 
-- **1 投稿 = フロッピー 1 枚**。1 投稿の合計（本文 + ドット絵 256 バイト + 画像）が
+- **1 投稿 = フロッピー 1 枚**。1 投稿の合計（本文 + ドット絵 + 画像 + フロッピー）が
   1.44MB を超えると 403 で拒否されます。累計では制限しません。
 - 投稿フォームの `DISK (C:)` は、**いま書いている投稿**の容量統計（使用バイト数 /
   上限 / 使用率）を表示します。残量は表示しません。
-- ドット絵は常に 256 バイト固定（未描画でも 256 バイト消費）。本文はマルチバイト文字も
-  `strlen` のバイト数でカウントするため、日本語は 1 文字 3 バイトとして消費されます。
+- ドット絵はキャンバスに応じて 256 / 768 / 1,024 バイト（未描画でも消費）。
+  本文はマルチバイト文字も `strlen` のバイト数でカウントするため、日本語は
+  1 文字 3 バイトとして消費されます。
 - **画像も容量に含まれます**。画像は縮小せず実ファイルのまま `backend/uploads/` に保存し、
   そのバイト数を 1 投稿の合計に加算します。つまり写真 1 枚で 1.44MB をほぼ使い切ります。
 - **YouTube の埋め込みは容量に含まれません**（本文中の URL 文字列だけが本文バイト数として
@@ -316,7 +476,11 @@ npm run build:subdir        # /floppy.io/ 配下に置く場合
 投稿フォームの **`[AA] スタンプ`** から、顔文字・BBS 風・フレーム・ドットの
 アスキーアートをワンクリックでカーソル位置に挿入できます。
 
-- プリセット: 顔文字 / BBS / フレーム / ドット
+- プリセット: よく使う / 顔文字 / BBS / フレーム / ドット / 自作
+- **検索欄**で今のタブのスタンプを絞り込めます（例: `枠`, `猫`, `お祝い`）
+- **よく使う**: 直近に挿入したスタンプを最大 12 件、新しい順に自動で並べます
+  （localStorage キー: `floppy_aa_recent_v1`）。よく使うタブ以外でも
+  「最近使った」として直近 6 件をワンタップで再利用できます
 - 自作スタンプは **ブラウザの localStorage**（キー: `floppy_aa_stamps_v1`）に保存
 - 保存できる自作スタンプは **最大 50 件 / 1 件 300 文字**
 - 保存先は端末・ブラウザごとで、**サーバーには送信されません**
@@ -324,10 +488,23 @@ npm run build:subdir        # /floppy.io/ 配下に置く場合
 
 > 複数行の AA は前後に改行、1 行の顔文字は前後に半角スペースを補って挿入します。
 
+## ドット絵エディタ
+
+投稿フォームの「ドット絵を描く」で、Miiverse 風のツールバー付きエディタが開きます。
+
+- **キャンバス切替**: 正方形（32×32）/ Miiverse（32×24・4:3）/ クラシック（16×16）。
+  切り替え時は絵の中央を基準にコピーし、はみ出た部分だけを切り取ります（undo 可能）
+- **もどる / すすむ**: 描画・消去・全消去・キャンバス切替を履歴から戻す / やり直す
+  （`⌘/Ctrl + Z`、`⌘/Ctrl + Shift + Z` / `Ctrl + Y` でも操作可）
+- **ペン / 消しゴム / グリッド / 全消去**: 消しゴムは右クリックまたは `Alt` + ドラッグでも使えます
+- 16 色パレット、現在色のインジケータ、ドット数表示
+- 描画結果は 16 進文字列として `posts.pixel_data` に、キャンバスは
+  `posts.pixel_width` / `pixel_height` に保存します
+
 ## 共有
 
 - 各投稿の「🔗 共有」を押すと**共有ダイアログ**が開きます。
-- **共有リンク**（`#/p/:id`）は、その投稿 1 件だけを表示する共有ページを開きます。
+- **共有リンク**（`/p/:id`）は、その投稿 1 件だけを表示する共有ページを開きます。
 - **外部サイトに貼り付ける HTML** は `/api/preview` が自己完結型のスニペットとして
   生成します。本文・ドット絵（SVG）・画像・YouTube・フロッピーファイル（音声は
   プレイヤー付き）が 1 枚のカードにまとまります。
@@ -345,7 +522,7 @@ npm run build:subdir        # /floppy.io/ 配下に置く場合
 
 - プロフィールの「フォローする」を押すと**フォローの付け外し（トグル）**ができます。
   フォロー中はボタンが「フォロー中」に変わります（自分自身にはボタンを出しません）。
-- ホームのタブで「タイムライン」（全員の投稿）と「**フォロー中**」（`#/following`）を
+- ホームのタブで「タイムライン」（全員の投稿）と「**フォロー中**」（`/following`）を
   切り替えられます。フォロー中タイムラインは**自分＋フォロー中ユーザーの投稿**を
   新しい順に表示します。
 - フォロー中タイムラインは**ログイン必須**です（誰をフォローしているかは本人にしか
@@ -422,8 +599,10 @@ npm run build:subdir        # /floppy.io/ 配下に置く場合
   - Cookie を使わないので、クロスオリジンでも動きます
     （本番では `FLOPPY_CORS_ORIGINS` を公開オリジンに限定してください）。
   - 旧 PHP 版の平文トークンは、初回利用時にハッシュへ自動移行します。
-- **ルーティング**: Nuxt 4 の `router.options.hashMode` を使い、
-  `#/u/name` / `#/p/12` のような URL を維持しています（サーバー側リライト不要）。
+- **ルーティング**: Nuxt 4 の履歴モードを使い、`/u/name` / `/p/12` のような
+  通常の URL で表示します。静的配信側では未知パスを `index.html` に
+  フォールバックさせてください（`tools/public_gateway.py` は対応済み）。
+  旧 `#/...` URL はクライアント側で自動的にパスへ変換します。
 - **容量計算**: `posts.total_bytes` に投稿時の値を保存しているため、1 投稿の容量判定は
   投稿時に確定します（本文を再計算する必要はありません）。累計が必要な場合は
   `SUM(total_bytes)` で求まります。

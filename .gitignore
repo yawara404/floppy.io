@@ -12,6 +12,12 @@ __pycache__/
 .pytest_cache/
 backend/.env
 
+# 実行ログ / PID (serve.sh / run.sh)
+backend/logs/
+
+# 公開用ゲートウェイ / トンネルのログ・PID (tools/public.sh)
+logs/
+
 # 環境変数
 .env
 .env.local

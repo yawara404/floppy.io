@@ -9,10 +9,14 @@ from .utils.uploads import floppy_kind, upload_url
 
 POST_COLUMNS = """p.id,
   p.user_id,
+  p.reply_to_id,
   u.username,
   u.display_name,
+  u.allow_replies AS author_allow_replies,
   p.text,
   p.pixel_data,
+  p.pixel_width,
+  p.pixel_height,
   p.image_path,
   p.image_mime,
   p.image_bytes,
@@ -39,6 +43,14 @@ def with_media(row: dict[str, Any] | None) -> dict[str, Any] | None:
     result["floppy_kind"] = (
         floppy_kind(row["floppy_name"]) if row.get("floppy_name") else None
     )
+    # 返信の受け付け設定（投稿者本人の設定）。既定はオフ＝返信できない。
+    result["replies_enabled"] = bool(int(row.get("author_allow_replies") or 0))
+    result.pop("author_allow_replies", None)
+    result["reply_to_id"] = (
+        int(row["reply_to_id"]) if row.get("reply_to_id") else None
+    )
+    result["pixel_width"] = int(row.get("pixel_width") or 16)
+    result["pixel_height"] = int(row.get("pixel_height") or 16)
     return result
 
 
@@ -77,6 +89,31 @@ def attach_likes(
         post_id = int(post["id"])
         post["like_count"] = counts.get(post_id, 0)
         post["liked"] = post_id in liked
+
+    return posts
+
+
+def attach_reply_counts(posts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """各投稿に、その投稿をルートとする返信の件数を付ける"""
+    if not posts:
+        return posts
+
+    ids = [int(post["id"]) for post in posts]
+    placeholders = ",".join(["%s"] * len(ids))
+
+    counts = {
+        int(row["reply_to_id"]): int(row["c"])
+        for row in fetch_all(
+            f"""SELECT reply_to_id, COUNT(*) AS c
+                  FROM posts
+                 WHERE reply_to_id IN ({placeholders})
+                 GROUP BY reply_to_id""",
+            tuple(ids),
+        )
+    }
+
+    for post in posts:
+        post["reply_count"] = counts.get(int(post["id"]), 0)
 
     return posts
 

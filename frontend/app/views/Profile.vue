@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import PostList from '../components/PostList.vue'
+import ProfileEditor from '../components/ProfileEditor.vue'
 import { apiGet, apiPost } from '~/utils/api'
 import { isLoggedIn, refreshUser } from '~/composables/useAuth'
 import { drawPixel, FLOPPY_AVATAR } from '~/utils/pixel'
@@ -16,6 +17,7 @@ const loading = ref(false)
 const followError = ref('')
 const followBusy = ref(false)
 const canvas = ref(null)
+const editing = ref(false)
 
 function fmt(n) {
   return (n || 0).toLocaleString('ja-JP')
@@ -67,18 +69,33 @@ async function toggleFollow() {
   }
 }
 
-// アバターはプロフィール画像 → 最新投稿のドット絵 → フロッピーの順に使う
+// アバターは 32×32 アイコン → プロフィール画像 → 最新投稿のドット絵 → フロッピー
 watch(
-  () => [user.value?.avatar_url, user.value?.avatar_pixel],
+  () => [user.value?.icon_pixel, user.value?.avatar_url, user.value?.avatar_pixel],
   () => {
     if (!canvas.value) return
-    drawPixel(canvas.value, user.value?.avatar_pixel || FLOPPY_AVATAR)
+    drawPixel(
+      canvas.value,
+      user.value?.icon_pixel ||
+        user.value?.avatar_pixel ||
+        FLOPPY_AVATAR,
+    )
   },
   { flush: 'post' },
 )
 
 onMounted(load)
-watch(() => props.username, load)
+watch(() => props.username, () => {
+  editing.value = false
+  load()
+})
+
+// プロフィール編集を保存したら、表示中のユーザー情報を取り直す
+async function onProfileSaved() {
+  editing.value = false
+  await load()
+  await refreshUser()
+}
 </script>
 
 <template>
@@ -95,7 +112,7 @@ watch(() => props.username, load)
         <div class="profile-header-main">
           <div class="profile-avatar-wrap">
             <img
-              v-if="user.avatar_url"
+              v-if="!user.icon_pixel && user.avatar_url"
               :src="user.avatar_url"
               class="profile-header-avatar"
               :alt="user.display_name"
@@ -115,6 +132,14 @@ watch(() => props.username, load)
             <div class="profile-header-handle">@{{ user.username }}</div>
 
             <p v-if="user.bio" class="profile-header-bio">{{ user.bio }}</p>
+
+            <p
+              class="profile-header-replies"
+              :class="{ on: user.allow_replies }"
+            >
+              <span aria-hidden="true">[↩]</span>
+              {{ user.allow_replies ? '返信を受け付けています' : '返信は受け付けていません' }}
+            </p>
 
             <p v-if="followError" class="msg msg-error">{{ followError }}</p>
 
@@ -146,8 +171,21 @@ watch(() => props.username, load)
             </div>
           </div>
 
+          <!-- 自分のプロフィール: プロフィール編集 -->
+          <div v-if="user.is_self" class="profile-header-actions self-actions">
+            <button
+              type="button"
+              class="btn btn-primary"
+              :aria-expanded="editing ? 'true' : 'false'"
+              @click="editing = !editing"
+            >
+              {{ editing ? '編集を閉じる' : 'プロフィールを編集' }}
+            </button>
+            <NuxtLink class="btn" to="/settings">設定</NuxtLink>
+          </div>
+
           <!-- フォロー操作（自分自身のプロフィールには出さない） -->
-          <div v-if="!user.is_self" class="profile-header-actions">
+          <div v-else class="profile-header-actions">
             <template v-if="isLoggedIn">
               <button
                 type="button"
@@ -160,10 +198,18 @@ watch(() => props.username, load)
                 {{ user.following ? 'フォロー中' : 'フォローする' }}
               </button>
             </template>
-            <a v-else class="btn btn-primary" href="#/login">ログインしてフォロー</a>
+            <NuxtLink v-else class="btn btn-primary" to="/login">ログインしてフォロー</NuxtLink>
           </div>
         </div>
       </section>
+
+      <!-- プロフィール画面からのインライン編集（本人のみ） -->
+      <ProfileEditor
+        v-if="user.is_self && editing"
+        :user="user"
+        @saved="onProfileSaved"
+        @cancel="editing = false"
+      />
 
       <section class="timeline-wrap">
         <div class="timeline-head">

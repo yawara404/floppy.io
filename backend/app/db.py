@@ -1,6 +1,7 @@
 # floppy.io — MySQL 接続 (PyMySQL)
 from __future__ import annotations
 
+import time
 from contextlib import contextmanager
 from typing import Any, Iterator
 
@@ -10,6 +11,11 @@ from pymysql.converters import conversions
 from pymysql.cursors import DictCursor
 
 from .config import DB_HOST, DB_NAME, DB_PASS, DB_PORT, DB_USER
+
+# MySQL の再起動中など「接続自体に失敗した」ときだけ 1 回だけ再試行する。
+# クエリ送信後のリトライは二重書き込みの恐れがあるため行わない。
+_RETRYABLE_CONNECT_ERRNO = 2003  # CR_CONN_HOST_ERROR: Can't connect to MySQL server
+_CONNECT_RETRY_DELAY_SECONDS = 0.3
 
 
 def _to_text(value: Any) -> str:
@@ -41,9 +47,20 @@ def connect() -> pymysql.connections.Connection:
     )
 
 
+def _connect_with_retry() -> pymysql.connections.Connection:
+    try:
+        return connect()
+    except pymysql.err.OperationalError as exc:
+        if not exc.args or exc.args[0] != _RETRYABLE_CONNECT_ERRNO:
+            raise
+        # MySQL の再起動直後など。少し待って 1 回だけやり直す。
+        time.sleep(_CONNECT_RETRY_DELAY_SECONDS)
+        return connect()
+
+
 @contextmanager
 def cursor() -> Iterator[DictCursor]:
-    connection = connect()
+    connection = _connect_with_retry()
     try:
         with connection.cursor() as cur:
             yield cur

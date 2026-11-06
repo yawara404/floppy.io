@@ -17,10 +17,13 @@ const capacityPercent = computed(() => {
   return Math.max(1, Math.min(100, (bytes / DISK_LIMIT) * 100))
 })
 
-// 画像が設定されていればそれを、無ければ最新投稿のドット絵を描く
+// 32×32 アイコン → プロフィール画像 → 最新投稿のドット絵 の順に使う
 function render() {
   if (!canvas.value) return
-  drawPixel(canvas.value, props.user?.avatar_pixel || FLOPPY_AVATAR)
+  drawPixel(
+    canvas.value,
+    props.user?.icon_pixel || props.user?.avatar_pixel || FLOPPY_AVATAR,
+  )
 }
 
 function fmt(n) {
@@ -28,9 +31,11 @@ function fmt(n) {
 }
 
 onMounted(render)
-watch(() => [props.user?.avatar_url, props.user?.avatar_pixel], render, {
-  flush: 'post',
-})
+watch(
+  () => [props.user?.icon_pixel, props.user?.avatar_url, props.user?.avatar_pixel],
+  render,
+  { flush: 'post' },
+)
 </script>
 
 <template>
@@ -40,9 +45,9 @@ watch(() => [props.user?.avatar_url, props.user?.avatar_pixel], render, {
       <span class="profile-online"><span class="pulse-dot"></span>ONLINE</span>
     </div>
 
-    <a :href="'#/u/' + user.username" class="profile-avatar-link">
+    <NuxtLink :to="'/u/' + user.username" class="profile-avatar-link">
       <img
-        v-if="user.avatar_url"
+        v-if="!user.icon_pixel && user.avatar_url"
         :src="user.avatar_url"
         class="profile-avatar"
         :alt="user.display_name"
@@ -54,11 +59,11 @@ watch(() => [props.user?.avatar_url, props.user?.avatar_pixel], render, {
         width="16"
         height="16"
       ></canvas>
-    </a>
+    </NuxtLink>
 
     <div class="profile-meta">
       <div class="profile-name">
-        <a :href="'#/u/' + user.username">{{ user.display_name }}</a>
+        <NuxtLink :to="'/u/' + user.username">{{ user.display_name }}</NuxtLink>
       </div>
       <div class="profile-handle">@{{ user.username }}</div>
     </div>

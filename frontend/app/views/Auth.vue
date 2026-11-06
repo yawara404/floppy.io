@@ -114,11 +114,11 @@ async function submit() {
       <p class="auth-switch">
         <template v-if="isRegister">
           すでにアカウントがある方は
-          <a href="#/login">ログイン</a>
+          <NuxtLink to="/login">ログイン</NuxtLink>
         </template>
         <template v-else>
           アカウントをお持ちでない方は
-          <a href="#/register">新規登録</a>
+          <NuxtLink to="/register">新規登録</NuxtLink>
         </template>
       </p>
     </section>

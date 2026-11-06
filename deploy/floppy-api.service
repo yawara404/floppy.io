@@ -1,0 +1,45 @@
+# floppy.io — systemd unit (Linux 本番向け)
+#
+#   sudo cp deploy/floppy-api.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now floppy-api
+#   systemctl status floppy-api
+#   journalctl -u floppy-api -f
+#
+# パス (/opt/floppy.io) とユーザー (floppy) は環境に合わせて変更してください。
+# 自動再起動 (Restart=always) と、連続クラッシュ時の再起動ループ抑制を設定しています。
+
+[Unit]
+Description=floppy.io API (FastAPI / uvicorn)
+After=network.target mysql.service
+Wants=mysql.service
+
+# 5 分で 10 回以上落ちたら systemd が諦める（無限ループで負荷をかけない）
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+[Service]
+Type=simple
+User=floppy
+Group=floppy
+WorkingDirectory=/opt/floppy.io/backend
+EnvironmentFile=/opt/floppy.io/backend/.env
+ExecStart=/opt/floppy.io/backend/.venv/bin/uvicorn app.main:app \
+  --host 127.0.0.1 --port 8000 \
+  --proxy-headers --forwarded-allow-ips 127.0.0.1
+
+# 落ちたら 3 秒後に自動で復帰
+Restart=always
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=15
+
+# 権限を絞る
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/floppy.io/backend/uploads /opt/floppy.io/backend/logs
+
+[Install]
+WantedBy=multi-user.target

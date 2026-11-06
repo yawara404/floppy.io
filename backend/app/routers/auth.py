@@ -55,13 +55,23 @@ def register(request: Request, payload: RegisterIn) -> dict:
         )
     except pymysql.err.IntegrityError:
         raise HTTPException(409, "このユーザー名は既に使われています。") from None
-    except pymysql.MySQLError:
-        raise HTTPException(500, "登録に失敗しました。") from None
+    # 接続不能 / スキーマ不足などの DB エラーは握りつぶさず、
+    # main.py の共通ハンドラに復旧手順付きの 503 を返させる。
 
-    token = issue_token(user_id)
-    row = fetch_one(f"SELECT {USER_COLUMNS} FROM users WHERE id = %s", (user_id,))
-
-    return {"token": token, "user": public_user(row)}
+    # ここから先で失敗すると「ユーザーだけ作られた」状態が残り、
+    # 再登録が 409 になって詰む。失敗時は作成を取り消す。
+    try:
+        token = issue_token(user_id)
+        row = fetch_one(f"SELECT {USER_COLUMNS} FROM users WHERE id = %s", (user_id,))
+        return {"token": token, "user": public_user(row)}
+    except Exception:
+        try:
+            # api_tokens は ON DELETE CASCADE で一緒に消える
+            execute("DELETE FROM users WHERE id = %s", (user_id,))
+        except pymysql.MySQLError:
+            pass
+        # 接続不能 / スキーマ不足は main.py の共通ハンドラに任せる
+        raise
 
 
 @router.post("/login")
@@ -77,8 +87,8 @@ def login(request: Request, payload: LoginIn) -> dict:
     row = fetch_one(
         """SELECT id, username, display_name, bio,
                   avatar_path, avatar_mime, avatar_bytes,
-                  avatar_width, avatar_height, created_at,
-                  password_hash
+                  avatar_width, avatar_height, icon_pixel, allow_replies,
+                  created_at, password_hash
              FROM users
             WHERE username = %s""",
         (username,),

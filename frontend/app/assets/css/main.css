@@ -1565,6 +1565,103 @@ textarea.input {
   font-size: 7.5px;
 }
 
+/* AA スタンプ: LINE のスタンプ一覧を参考にした検索 / よく使う / 大きめボタン */
+.aa-head-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aa-search-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.aa-search {
+  min-height: 34px;
+  padding: 6px 9px;
+  font-size: 12px;
+}
+
+.aa-tabs {
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin-top: 8px;
+  padding-bottom: 2px;
+  overflow-x: auto;
+}
+
+.aa-tab {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.aa-tab-count {
+  margin-left: 3px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  opacity: 0.72;
+}
+
+.aa-recent {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 6px;
+  border: 1px dashed var(--line);
+  background: var(--paper-2);
+}
+
+.aa-recent-label {
+  margin-right: 2px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+}
+
+.aa-recent-item {
+  max-width: 160px;
+  padding: 3px 6px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.aa-recent-item:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.aa-grid {
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 5px;
+  max-height: 240px;
+}
+
+.aa-stamp {
+  min-height: 52px;
+  padding: 6px;
+}
+
+.aa-stamp:active {
+  transform: translateY(1px);
+}
+
+.aa-stamp pre {
+  max-height: 64px;
+  font-size: 9.5px;
+}
+
 /* 画像添付 */
 .image-input {
   display: none;
@@ -2132,6 +2229,93 @@ textarea.input {
   font-size: 11px;
 }
 
+/* 返信 */
+.post-reply-to {
+  color: var(--link);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+
+.reply-btn:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.reply-btn:disabled:hover {
+  border-color: transparent;
+  background: none;
+  text-decoration: none;
+}
+
+.reply-count {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.reply-form {
+  margin-top: 9px;
+  padding: 10px;
+  border: 1px dashed var(--line-strong);
+  background: var(--paper-2);
+}
+
+.reply-form .field-label {
+  margin-bottom: 5px;
+}
+
+.reply-input {
+  min-height: 56px;
+  background: var(--paper);
+  font-size: 12.5px;
+}
+
+.reply-hint {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  text-align: right;
+}
+
+.reply-hint.danger {
+  color: var(--danger);
+}
+
+.reply-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.reply-form .msg {
+  margin: 8px 0 0;
+}
+
+.reply-form-guest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.reply-form-guest .reply-actions {
+  margin-top: 0;
+}
+
+.thread {
+  margin-top: 16px;
+}
+
+.thread-list {
+  margin-top: 14px;
+}
+
 /* 空状態 / 読み込み中 / DAT フッター */
 .empty {
   display: flex;
@@ -2397,6 +2581,71 @@ textarea.input {
   color: var(--ink-2);
   font-family: var(--font-mono);
   font-weight: 500;
+}
+
+/* チェックボックス行（設定） */
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  cursor: pointer;
+}
+
+.check-row input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.check-row input[type='checkbox']:disabled {
+  cursor: wait;
+}
+
+.check-row-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.check-row-title {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.check-row-state {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+/* プロフィールアイコン (32×32 ドット絵) */
+.icon-editor-status {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.icon-editor-status .field-label {
+  margin-bottom: 0;
+}
+
+.icon-editor-state {
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.icon-editor-state::before {
+  content: '■ ';
+  color: var(--accent);
+  font-size: 8px;
 }
 
 /* メッセージ */
@@ -2674,6 +2923,75 @@ textarea.input {
   word-break: break-word;
 }
 
+.profile-header-replies {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+
+.profile-header-replies.on {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+
+/* 自分のプロフィールの操作 */
+.self-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* プロフィール画面からのインライン編集 */
+.profile-edit-panel {
+  margin-top: 14px;
+}
+
+.profile-edit-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.icon-edit-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.icon-preview {
+  display: block;
+  width: 76px;
+  height: 76px;
+  flex: 0 0 auto;
+  border: 2px solid var(--ink);
+  background: #ffffff;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.icon-edit-body {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.profile-edit-settings {
+  margin-left: auto;
+  align-self: center;
+  font-size: 11px;
+}
+
 .profile-header-stats {
   display: flex;
   flex-wrap: wrap;
@@ -2913,7 +3231,7 @@ textarea.input {
 }
 
 /* ------------------------------------------------------------------
-   ドット絵エディタ (PixelEditor)
+   ドット絵エディタ (PixelEditor) — Miiverse 風ツールバー
    ------------------------------------------------------------------ */
 .pixel-editor {
   margin-top: 10px;
@@ -2922,12 +3240,71 @@ textarea.input {
   background: var(--paper-2);
 }
 
+.pixel-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 7px;
+}
+
+.pixel-editor-sizes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.pixel-size-btn {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 4px 8px;
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
+  color: var(--ink-2);
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  cursor: pointer;
+}
+
+.pixel-size-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-deep);
+}
+
+.pixel-size-btn.active {
+  border-color: var(--ink);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.pixel-size-dots {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  opacity: 0.8;
+}
+
+.pixel-editor-count {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pixel-editor-stage {
+  display: flex;
+  justify-content: center;
+  padding: 8px;
+  border: 1px dashed var(--line-strong);
+  background: var(--paper);
+}
+
 .pixel-editor-canvas {
   display: block;
   width: 100%;
-  max-width: 240px;
+  max-width: 420px;
   height: auto;
-  aspect-ratio: 1 / 1;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   border: 2px solid var(--ink);
@@ -2936,16 +3313,100 @@ textarea.input {
   touch-action: none;
 }
 
+.pixel-editor-canvas.erasing {
+  cursor: cell;
+}
+
+.pixel-editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.pixel-editor-history {
+  display: flex;
+  gap: 5px;
+}
+
+.pixel-editor-history .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pixel-editor-tools {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.pixel-tool {
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  cursor: pointer;
+}
+
+.pixel-tool:hover {
+  border-color: var(--accent);
+  color: var(--accent-deep);
+}
+
+.pixel-tool.active {
+  border-color: var(--accent-deep);
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font-weight: 600;
+}
+
+.pixel-tool.danger {
+  color: var(--danger);
+}
+
+.pixel-tool.danger:hover {
+  border-color: var(--danger);
+  background: #f9e8e8;
+}
+
+.pixel-editor-colors {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.pixel-editor-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+}
+
+.pixel-current {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 1px solid var(--ink);
+}
+
 .pixel-editor-palette {
   display: flex;
   flex-wrap: wrap;
   gap: 3px;
-  margin-top: 8px;
 }
 
 .swatch {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: 1px solid var(--line-strong);
   cursor: pointer;
@@ -2960,15 +3421,8 @@ textarea.input {
   outline-offset: 1px;
 }
 
-.pixel-editor-tools {
-  display: flex;
-  gap: 7px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-top: 8px;
-}
-
 .pixel-editor-hint {
+  margin: 7px 0 0;
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: 8px;

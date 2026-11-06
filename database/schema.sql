@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS users (
   avatar_bytes  INT UNSIGNED     NOT NULL DEFAULT 0,
   avatar_width  SMALLINT UNSIGNED NOT NULL DEFAULT 0,
   avatar_height SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+  -- プロフィールアイコン用のドット絵 (32×32 = 1024 文字の 16 進文字列)。空は未設定。
+  icon_pixel    VARCHAR(1024)    NOT NULL DEFAULT '',
+  -- 返信の受け付け (0 = オフ / 1 = オン)。既定はオフ＝返信できない。
+  allow_replies TINYINT(1)       NOT NULL DEFAULT 0,
   password_hash VARCHAR(255)     NOT NULL DEFAULT '',
   created_at    TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -52,18 +56,26 @@ CREATE TABLE IF NOT EXISTS api_tokens (
 
 -- ------------------------------------------------------------
 -- 投稿
--- pixel_data: 16×16=256 マスを 1 マス = 1 桁の 16 進文字 (0-9A-F)
--- で表した 256 文字の文字列。わずか 256 バイトでドット絵を保存する。
+-- pixel_data: ドット絵キャンバスを 1 マス = 1 桁の 16 進文字 (0-9A-F)
+-- で表した文字列。キャンバスは pixel_width × pixel_height。
+--   16×16 = 256 文字（クラシック）
+--   32×32 = 1024 文字（正方形）
+--   32×24 = 768 文字（Miiverse 風 4:3）
 -- text_bytes / pixel_bytes / total_bytes は投稿時の実消費バイト数。
 -- 容量制限は「1 投稿あたり 1.44MB」。
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS posts (
   id           INT UNSIGNED     NOT NULL AUTO_INCREMENT,
   user_id      INT UNSIGNED     NOT NULL,
+  -- 返信先スレッドのルート投稿 ID。NULL は通常投稿。
+  -- 返信への返信も同じスレッド（ルート）にまとめる（フラットなスレッド）。
+  reply_to_id  INT UNSIGNED     NULL DEFAULT NULL,
   -- 1 投稿あたり最大 1.44MB を保存できるよう MEDIUMTEXT (最大 16MB) を使う
   text         MEDIUMTEXT       NOT NULL,
-  -- CHAR の上限は 255 文字のため、256 文字の 16 進文字列は VARCHAR で保持する
-  pixel_data   VARCHAR(256)     NOT NULL,
+  -- ドット絵 (最大 64×64 まで拡張できるよう VARCHAR(4096))
+  pixel_data   VARCHAR(4096)    NOT NULL,
+  pixel_width  SMALLINT UNSIGNED NOT NULL DEFAULT 16,
+  pixel_height SMALLINT UNSIGNED NOT NULL DEFAULT 16,
   -- 画像は backend/uploads/ に実ファイルとして保存し、そのファイル名を保持する
   image_path   VARCHAR(255)     NOT NULL DEFAULT '',
   image_mime   VARCHAR(64)      NOT NULL DEFAULT '',
@@ -85,6 +97,7 @@ CREATE TABLE IF NOT EXISTS posts (
   PRIMARY KEY (id),
   KEY idx_posts_user    (user_id),
   KEY idx_posts_created (created_at),
+  KEY idx_posts_reply   (reply_to_id),
   CONSTRAINT fk_posts_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4

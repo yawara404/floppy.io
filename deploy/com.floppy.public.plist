@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  floppy.io — 公開スタック (API / ゲートウェイ / Cloudflare Tunnel) の自動復旧
+
+    mkdir -p /Users/it262148/floppy_io/logs
+    cp deploy/com.floppy.public.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.floppy.public.plist
+
+  1 分ごとに tools/public.sh ensure を実行し、落ちているものだけを起こします
+  （ログイン時にも 1 回実行）。停止するときは launchctl unload。
+
+  確認: launchctl list | grep com.floppy.public
+  ログ: /Users/it262148/floppy_io/logs/launchd.log
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.floppy.public</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-c</string>
+    <string>/Users/it262148/floppy_io/tools/public.sh ensure</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>60</integer>
+
+  <!-- ジョブ終了時に、ここから起動した API / ゲートウェイ / トンネルを
+       巻き添えで終了させない（これが無いと ensure の直後に落ちる） -->
+  <key>AbandonProcessGroup</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/it262148/floppy_io/logs/launchd.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/it262148/floppy_io/logs/launchd.log</string>
+</dict>
+</plist>
