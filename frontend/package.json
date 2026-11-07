@@ -5,6 +5,7 @@
   "type": "module",
   "description": "1.44MB レトロ SNS「floppy.io」フロントエンド (Nuxt 4)",
   "scripts": {
+    "test": "node --test tests/*.test.mjs",
     "dev": "nuxt dev",
     "build": "nuxt generate && rm -rf dist && cp -R .output/public dist",
     "build:subdir": "NUXT_APP_BASE_URL=/floppy.io/ npm run build",

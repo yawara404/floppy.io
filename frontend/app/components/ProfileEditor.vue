@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import PixelEditor from './PixelEditor.vue'
-import { apiPost, apiUpload } from '~/utils/api'
+import { apiPost, apiUpload, resolveMediaUrl } from '~/utils/api'
 import { applyUser } from '~/composables/useAuth'
 import { drawPixel } from '~/utils/pixel'
 
@@ -194,7 +194,7 @@ async function saveAll() {
         <img
           v-if="avatarPreview || (!removeAvatar && user.avatar_url)"
           class="avatar-preview"
-          :src="avatarPreview || user.avatar_url"
+          :src="avatarPreview || resolveMediaUrl(user.avatar_url)"
           alt="プロフィール画像のプレビュー"
         />
         <div v-else class="avatar-preview avatar-preview-empty">未設定</div>

@@ -6,9 +6,25 @@
 // index.html にフォールバックさせる（tools/public_gateway.py / .htaccess）。
 // 開発時: フロントエンド (Nuxt :5173) から Python API へ転送する。
 // ポート 8000 が他のアプリと衝突する場合は FLOPPY_API_PORT でずらせる。
+import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+
 const apiTarget =
   process.env.FLOPPY_API_TARGET ||
   `http://127.0.0.1:${process.env.FLOPPY_API_PORT || '8000'}`
+
+// public/ の静的ファイルは app.baseURL を前置した絶対パスで参照する。
+//   './config.js' のままだと共有ページ /p/12 で /p/config.js を探して 404 になり、
+//   実行時 API 接続先 (window.__FLOPPY_API_BASE__) が読まれない。
+const appBase = (process.env.NUXT_APP_BASE_URL || '/').replace(/\/?$/, '/')
+const publicPath = (file: string) => `${appBase}${file}`
+
+// config.js の中身が変わったら URL も変える（Cloudflare / ブラウザの
+// 古いキャッシュが残り、API 接続先の修正が反映されないのを防ぐ）。
+const configVersion = createHash('sha1')
+  .update(readFileSync(new URL('./public/config.js', import.meta.url)))
+  .digest('hex')
+  .slice(0, 8)
 
 export default defineNuxtConfig({
   ssr: false,
@@ -20,7 +36,7 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2025-07-15',
 
-  css: ['~/assets/css/main.css'],
+  css: ['~/assets/css/main.css', '~/assets/css/refinements.css'],
 
   app: {
     head: {
@@ -65,7 +81,7 @@ export default defineNuxtConfig({
         { property: 'og:locale', content: 'ja_JP' },
 
         { name: 'theme-color', content: '#cfe9d8' },
-        { name: 'color-scheme', content: 'dark' },
+        { name: 'color-scheme', content: 'light' },
 
         { name: 'twitter:card', content: 'summary_large_image' },
         {
@@ -88,13 +104,23 @@ export default defineNuxtConfig({
       ],
 
       link: [
-        { rel: 'icon', type: 'image/svg+xml', href: './favicon.svg' },
-        { rel: 'icon', type: 'image/png', sizes: '32x32', href: './favicon-32.png' },
-        { rel: 'icon', type: 'image/png', sizes: '512x512', href: './favicon.png' },
+        { rel: 'icon', type: 'image/svg+xml', href: publicPath('favicon.svg') },
+        {
+          rel: 'icon',
+          type: 'image/png',
+          sizes: '32x32',
+          href: publicPath('favicon-32.png'),
+        },
+        {
+          rel: 'icon',
+          type: 'image/png',
+          sizes: '512x512',
+          href: publicPath('favicon.png'),
+        },
         {
           rel: 'apple-touch-icon',
           sizes: '180x180',
-          href: './apple-touch-icon.png',
+          href: publicPath('apple-touch-icon.png'),
         },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         {
@@ -110,7 +136,13 @@ export default defineNuxtConfig({
 
       // API の接続先を実行時に決める (public/config.js)。
       // Nuxt のエントリより先に読み込まれるよう head に置く。
-      script: [{ src: './config.js', tagPosition: 'head' }],
+      // 中身のハッシュを ?v= に付けて、古いキャッシュを引かないようにする。
+      script: [
+        {
+          src: `${publicPath('config.js')}?v=${configVersion}`,
+          tagPosition: 'head',
+        },
+      ],
     },
 
     pageTransition: { name: 'page', mode: 'out-in' },

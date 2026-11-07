@@ -1,8 +1,8 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import PostList from '../components/PostList.vue'
 import ProfileEditor from '../components/ProfileEditor.vue'
-import { apiGet, apiPost } from '~/utils/api'
+import { apiGet, apiPost, resolveMediaUrl } from '~/utils/api'
 import { isLoggedIn, refreshUser } from '~/composables/useAuth'
 import { drawPixel, FLOPPY_AVATAR } from '~/utils/pixel'
 
@@ -10,10 +10,25 @@ const props = defineProps({
   username: { type: String, required: true },
 })
 
+const route = useRoute()
+const router = useRouter()
+const connectionsKind = computed(() =>
+  ['following', 'followers'].includes(route.query.connections) ? route.query.connections : '',
+)
+function selectConnections(kind) {
+  router.replace({ query: { ...route.query, connections: kind } })
+}
+function closeConnections() {
+  const query = { ...route.query }
+  delete query.connections
+  router.replace({ query })
+}
+
 const user = ref(null)
 const posts = ref([])
 const error = ref('')
-const loading = ref(false)
+const loading = ref(true)
+let loadSequence = 0
 const followError = ref('')
 const followBusy = ref(false)
 const canvas = ref(null)
@@ -31,6 +46,7 @@ function fmtDate(s) {
 }
 
 async function load() {
+  const sequence = ++loadSequence
   error.value = ''
   followError.value = ''
   loading.value = true
@@ -38,14 +54,16 @@ async function load() {
     const data = await apiGet(
       '/user?username=' + encodeURIComponent(props.username),
     )
+    if (sequence !== loadSequence) return
     user.value = data.user
     posts.value = data.posts || []
   } catch (e) {
+    if (sequence !== loadSequence) return
     error.value = e.message
     user.value = null
     posts.value = []
   } finally {
-    loading.value = false
+    if (sequence === loadSequence) loading.value = false
   }
 }
 
@@ -86,6 +104,8 @@ watch(
 
 onMounted(load)
 watch(() => props.username, () => {
+  user.value = null
+  posts.value = []
   editing.value = false
   load()
 })
@@ -100,7 +120,8 @@ async function onProfileSaved() {
 
 <template>
   <div>
-    <p v-if="error" class="msg msg-error">{{ error }}</p>
+    <p v-if="loading && !user" class="panel-note" role="status">プロフィールを読み込み中…</p>
+    <RequestError v-else-if="error" :message="error" @retry="load" />
 
     <template v-if="user">
       <!-- プロフィールヘッダー -->
@@ -113,7 +134,7 @@ async function onProfileSaved() {
           <div class="profile-avatar-wrap">
             <img
               v-if="!user.icon_pixel && user.avatar_url"
-              :src="user.avatar_url"
+              :src="resolveMediaUrl(user.avatar_url)"
               class="profile-header-avatar"
               :alt="user.display_name"
             />
@@ -128,7 +149,7 @@ async function onProfileSaved() {
           </div>
 
           <div class="profile-header-body">
-            <h2 class="profile-header-name">{{ user.display_name }}</h2>
+            <h1 class="profile-header-name">{{ user.display_name }}</h1>
             <div class="profile-header-handle">@{{ user.username }}</div>
 
             <p v-if="user.bio" class="profile-header-bio">{{ user.bio }}</p>
@@ -148,14 +169,14 @@ async function onProfileSaved() {
                 <b>{{ fmt(user.post_count) }}</b>
                 <span>投稿</span>
               </div>
-              <div class="stat">
+              <NuxtLink class="stat stat-link" :to="{ path: route.path, query: { ...route.query, connections: 'following' } }">
                 <b>{{ fmt(user.following_count) }}</b>
-                <span>フォロー</span>
-              </div>
-              <div class="stat">
+                <span>フォロー中</span>
+              </NuxtLink>
+              <NuxtLink class="stat stat-link" :to="{ path: route.path, query: { ...route.query, connections: 'followers' } }">
                 <b>{{ fmt(user.follower_count) }}</b>
                 <span>フォロワー</span>
-              </div>
+              </NuxtLink>
               <div class="stat">
                 <b>{{ fmt(user.total_bytes) }}</b>
                 <span>合計バイト</span>
@@ -224,6 +245,14 @@ async function onProfileSaved() {
           @changed="load"
         />
       </section>
+      <ConnectionsDialog
+        v-if="connectionsKind"
+        :username="user.username"
+        :kind="connectionsKind"
+        @close="closeConnections"
+        @select="selectConnections"
+        @changed="load"
+      />
     </template>
   </div>
 </template>

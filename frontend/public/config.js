@@ -9,18 +9,39 @@
  * - 開発: Nuxt (Vite) の proxy が /api → http://127.0.0.1:8000 に転送する
  * - 本番: リバースプロキシが /api と /uploads を FastAPI に転送する
  * - サブディレクトリ配信: /floppy.io/api のように自動で補正する
+ *
+ * 重要: このスクリプト自身の URL からアプリのルートを求める。
+ *   /p/12 のような深いパスでは location.pathname を基準にすると
+ *   /p/12/api になってしまう（共有ページで API が壊れる原因）。
  */
 (function () {
-  var loc = window.location
-  var base
+  function dirname(pathname) {
+    var i = pathname.lastIndexOf('/')
+    return i >= 0 ? pathname.slice(0, i + 1) : '/'
+  }
 
-  if (loc.pathname !== '/' && !/\.[a-z0-9]+$/i.test(loc.pathname)) {
-    // サブディレクトリ配信 (例: https://example.com/floppy.io/) → 同じ階層の /api
-    var dir = loc.pathname.slice(-1) === '/' ? loc.pathname : loc.pathname + '/'
-    base = dir + 'api'
-  } else {
-    // ルート配信 / Nuxt(Vite) 開発サーバー → 同一オリジン
-    base = '/api'
+  // 自分自身の <script src> を探す（currentScript が使えない環境も考慮）
+  var src = (document.currentScript && document.currentScript.src) || ''
+  if (!src) {
+    var scripts = document.getElementsByTagName('script')
+    for (var i = 0; i < scripts.length; i++) {
+      if (/(^|\/)config\.js(\?|#|$)/.test(scripts[i].src || '')) {
+        src = scripts[i].src
+        break
+      }
+    }
+  }
+
+  var base = '/api'
+
+  if (src) {
+    try {
+      // 例: https://example.com/floppy.io/config.js → /floppy.io/
+      var root = dirname(new URL(src, window.location.href).pathname)
+      base = root + 'api'
+    } catch (e) {
+      base = '/api'
+    }
   }
 
   window.__FLOPPY_API_BASE__ = base

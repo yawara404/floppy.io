@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, onMounted, watch } from 'vue'
 import { drawPixel, FLOPPY_AVATAR } from '~/utils/pixel'
+import { resolveMediaUrl } from '~/utils/api'
 
 const props = defineProps({
   user: { type: Object, required: true },
@@ -48,7 +49,7 @@ watch(
     <NuxtLink :to="'/u/' + user.username" class="profile-avatar-link">
       <img
         v-if="!user.icon_pixel && user.avatar_url"
-        :src="user.avatar_url"
+        :src="resolveMediaUrl(user.avatar_url)"
         class="profile-avatar"
         :alt="user.display_name"
       />
@@ -75,14 +76,14 @@ watch(
         <b>{{ fmt(user.post_count) }}</b>
         <span>投稿</span>
       </div>
-      <div class="stat">
+      <NuxtLink class="stat stat-link" :to="{ path: '/u/' + user.username, query: { connections: 'following' } }">
         <b>{{ fmt(user.following_count) }}</b>
-        <span>フォロー</span>
-      </div>
-      <div class="stat">
+        <span>フォロー中</span>
+      </NuxtLink>
+      <NuxtLink class="stat stat-link" :to="{ path: '/u/' + user.username, query: { connections: 'followers' } }">
         <b>{{ fmt(user.follower_count) }}</b>
         <span>フォロワー</span>
-      </div>
+      </NuxtLink>
       <div class="stat">
         <b>{{ fmt(user.total_bytes) }}</b>
         <span>合計バイト</span>

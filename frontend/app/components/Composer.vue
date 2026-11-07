@@ -6,6 +6,11 @@ import { apiPost, apiUpload } from '~/utils/api'
 import { refreshUser } from '~/composables/useAuth'
 import { blankPixel, pixelIsBlank } from '~/utils/pixel'
 
+const props = defineProps({
+  // 書き込み先のディスク (コミュニティ)。null ならホームへ投稿する。
+  disk: { type: Object, default: null },
+})
+
 const emit = defineEmits(['posted'])
 
 const DISK_LIMIT = 1474560
@@ -363,6 +368,7 @@ function clearImage() {
 }
 
 async function submit() {
+  if (loading.value) return
   error.value = ''
 
   if (
@@ -390,6 +396,7 @@ async function submit() {
       form.append('pixel_data', pixelData.value)
       form.append('pixel_width', String(pixelWidth.value))
       form.append('pixel_height', String(pixelHeight.value))
+      if (props.disk?.id) form.append('disk_id', String(props.disk.id))
       if (imageFile.value) form.append('image', imageFile.value)
       if (floppyFile.value) form.append('floppy', floppyFile.value)
       data = await apiUpload('/posts', form)
@@ -399,6 +406,7 @@ async function submit() {
         pixel_data: pixelData.value,
         pixel_width: pixelWidth.value,
         pixel_height: pixelHeight.value,
+        ...(props.disk?.id ? { disk_id: props.disk.id } : {}),
       })
     }
 
@@ -429,15 +437,28 @@ onBeforeUnmount(() => {
     <div class="composer-head">
       <div>
         <h2 class="composer-title">いま、なにを残す？</h2>
+        <NuxtLink
+          v-if="disk"
+          class="composer-disk"
+          :to="'/d/' + disk.slug"
+        >
+          <span class="composer-disk-key">[D]</span>
+          {{ disk.name }} に書き込む
+        </NuxtLink>
       </div>
       <span class="composer-led"><span class="pulse-dot"></span>REC</span>
     </div>
 
     <textarea
+      id="post-text"
       ref="textareaRef"
       v-model="text"
       class="input"
+      aria-label="投稿の本文"
+      :aria-invalid="overLimit"
       rows="4"
+      @keydown.meta.enter.prevent="submit"
+      @keydown.ctrl.enter.prevent="submit"
       placeholder="1.44MB まで書けます。容量と相談しながら、残したい言葉を。"
     ></textarea>
 
@@ -478,17 +499,19 @@ onBeforeUnmount(() => {
           type="button"
           class="link-btn"
           :class="{ active: showAA }"
+          :aria-expanded="showAA"
+          aria-controls="aa-panel"
           @click="showAA = !showAA"
         >
           {{ showAA ? '▾ AA スタンプ' : '▸ AA スタンプ' }}
         </button>
 
-        <button type="button" class="link-btn" @click="showEditor = !showEditor">
+        <button type="button" class="link-btn" :aria-expanded="showEditor" aria-controls="pixel-panel" @click="showEditor = !showEditor">
           {{ showEditor ? '▾ ドット絵を閉じる' : '▸ ドット絵を描く' }}
         </button>
 
-        <label class="link-btn" for="post-image">[IMG] 画像</label>
-        <label class="link-btn" for="post-floppy">[FILE] ファイル</label>
+        <button type="button" class="link-btn" @click="fileInput?.click()">[IMG] 画像</button>
+        <button type="button" class="link-btn" @click="floppyInput?.click()">[FILE] ファイル</button>
 
         <input
           id="post-floppy"
@@ -536,7 +559,7 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- アスキーアートスタンプ (自作は localStorage に保存) -->
-    <div v-if="showAA" class="aa-panel">
+    <div v-if="showAA" id="aa-panel" class="aa-panel">
       <div class="aa-head">
         <span class="aa-title">[AA] STAMP LIBRARY</span>
         <div class="aa-head-right">
@@ -565,15 +588,14 @@ onBeforeUnmount(() => {
         </button>
       </div>
 
-      <div class="aa-tabs" role="tablist" aria-label="スタンプの種類">
+      <div class="aa-tabs" role="group" aria-label="スタンプの種類">
         <button
           v-for="tab in aaTabs"
           :key="tab.id"
           type="button"
           class="aa-tab"
           :class="{ active: aaGroup === tab.id }"
-          role="tab"
-          :aria-selected="aaGroup === tab.id ? 'true' : 'false'"
+          :aria-pressed="aaGroup === tab.id"
           @click="aaGroup = tab.id"
         >
           {{ tab.label }}
@@ -655,6 +677,7 @@ onBeforeUnmount(() => {
 
     <PixelEditor
       v-if="showEditor"
+      id="pixel-panel"
       v-model="pixelData"
       :canvas-width="pixelWidth"
       :canvas-height="pixelHeight"

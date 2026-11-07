@@ -1,8 +1,9 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { drawPixelContained } from '~/utils/pixel'
 import ReplyForm from './ReplyForm.vue'
 import { isLoggedIn } from '~/composables/useAuth'
+import { resolveMediaUrl } from '~/utils/api'
 
 const props = defineProps({
   post: { type: Object, required: true },
@@ -11,14 +12,49 @@ const props = defineProps({
 
 defineEmits(['delete', 'share'])
 
+const router = useRouter()
 const canvas = ref(null)
 const playing = ref(false)
 const menuOpen = ref(false)
 const confirming = ref(false)
 const replying = ref(false)
+const hasExcerpt = computed(() => {
+  const text = String(props.post.text || '')
+  return text.length > 220 || text.split('\n').length > 6
+})
+const excerpt = computed(() => {
+  const text = String(props.post.text || '')
+  return hasExcerpt.value ? `${text.slice(0, 220).split('\n').slice(0, 6).join('\n')}…` : text
+})
+
+// カード全体をクリックしたら個別ビュー（/p/:id）へ。
+// ボタン・リンク・入力欄・メディア操作はそのまま動かす。
+function openPost() {
+  router.push(`/p/${props.post.id}`)
+}
+
+function onArticleClick(event) {
+  if (event.defaultPrevented || event.button !== 0) return
+
+  const target = event.target
+  const interactive = target?.closest?.(
+    'a, button, input, textarea, select, label, audio, video, iframe, form, ' +
+      '.post-menu, .post-menu-backdrop',
+  )
+  if (interactive) return
+
+  // テキスト選択中のクリックでは遷移しない
+  const selection = typeof window !== 'undefined' ? window.getSelection?.() : null
+  if (selection && String(selection).length > 0) return
+
+  openPost()
+}
 
 // 返信を受け付けるか（投稿者の設定）。既定はオフ。
 const repliesEnabled = computed(() => props.post.replies_enabled === true)
+
+// total_bytes が欠けていても表示が落ちないように数値化する
+const totalBytes = computed(() => Number(props.post.total_bytes) || 0)
 
 function toggleReply() {
   if (!repliesEnabled.value) return
@@ -32,6 +68,31 @@ function onReplied() {
 
 // ドット絵が描かれていない投稿ではキャンバスを出さない
 const hasPixel = computed(() => /[1-9A-Fa-f]/.test(props.post.pixel_data || ''))
+
+// 投稿者のアイコン（プロフィール画像 / 32×32 アイコン / 最新の正方形ドット絵）。
+// 読み込めない場合は投稿のドット絵 → [F] の順にフォールバックする。
+const avatarError = ref(false)
+const avatarImage = computed(() => {
+  if (avatarError.value) return ''
+  return resolveMediaUrl(
+    props.post.author_icon_url || props.post.author_avatar_url || '',
+  )
+})
+
+function drawAvatar() {
+  if (!canvas.value || !hasPixel.value) return
+  drawPixelContained(
+    canvas.value,
+    props.post.pixel_data,
+    props.post.pixel_width,
+    props.post.pixel_height,
+  )
+}
+
+function onAvatarError() {
+  avatarError.value = true
+  nextTick(drawAvatar)
+}
 
 // 投稿の種類ラベル（計器表示用）
 const postKind = computed(() => {
@@ -90,16 +151,17 @@ const localhostUrl = computed(() => {
   return `${protocol}//localhost${port ? ':' + port : ''}${pathname}${search}${hash}`
 })
 
-onMounted(() => {
-  if (hasPixel.value) {
-    drawPixelContained(
-      canvas.value,
-      props.post.pixel_data,
-      props.post.pixel_width,
-      props.post.pixel_height,
-    )
-  }
-})
+onMounted(drawAvatar)
+
+// 別の投稿に切り替わったとき / アイコンURLが変わったときは再評価する
+watch(
+  () => [props.post.id, props.post.author_icon_url, props.post.author_avatar_url],
+  async () => {
+    avatarError.value = false
+    await nextTick()
+    drawAvatar()
+  },
+)
 
 function fmtDate(s) {
   if (!s) return ''
@@ -112,10 +174,18 @@ function fmtDate(s) {
 </script>
 
 <template>
-  <article class="post">
+  <article class="post post-clickable" @click="onArticleClick">
     <div class="post-avatar">
+      <img
+        v-if="avatarImage"
+        :src="avatarImage"
+        class="post-avatar-image"
+        alt=""
+        loading="lazy"
+        @error="onAvatarError"
+      />
       <canvas
-        v-if="hasPixel"
+        v-else-if="hasPixel"
         ref="canvas"
         class="post-pixel"
         width="16"
@@ -130,7 +200,7 @@ function fmtDate(s) {
           {{ post.display_name || post.username }}
         </NuxtLink>
         <span class="post-handle">@{{ post.username }}</span>
-        <span class="post-bytes">[B] {{ post.total_bytes.toLocaleString('ja-JP') }} bytes</span>
+        <span class="post-bytes">[B] {{ totalBytes.toLocaleString('ja-JP') }} bytes</span>
 
         <!-- 三点メニュー（自分の投稿のみ） -->
         <button
@@ -146,11 +216,21 @@ function fmtDate(s) {
       </div>
 
       <div class="post-subline">
-        <span class="post-no">No.{{ post.id }}</span>
+        <NuxtLink
+          class="post-no"
+          :to="'/p/' + post.id"
+          :aria-label="'投稿 No.' + post.id + ' を開く'"
+        >No.{{ post.id }}</NuxtLink>
         <span class="post-dot">/</span>
         <span class="post-date">{{ fmtDate(post.created_at) }}</span>
         <span class="post-dot">/</span>
         <span class="post-kind">{{ postKind }}</span>
+        <template v-if="post.disk">
+          <span class="post-dot">/</span>
+          <NuxtLink class="post-disk" :to="'/d/' + post.disk.slug">
+            [D] {{ post.disk.name }}
+          </NuxtLink>
+        </template>
         <template v-if="post.reply_to_id">
           <span class="post-dot">/</span>
           <NuxtLink class="post-reply-to" :to="'/p/' + post.reply_to_id">
@@ -159,7 +239,8 @@ function fmtDate(s) {
         </template>
       </div>
 
-      <p v-if="post.text" class="post-text">{{ post.text }}</p>
+      <p v-if="post.text" class="post-text" :class="{ 'post-excerpt': hasExcerpt }">{{ excerpt }}</p>
+      <NuxtLink v-if="hasExcerpt" class="post-read-more" :to="`/p/${post.id}`">続きを読む →</NuxtLink>
 
       <!-- YouTube 埋め込み（クリックするまで iframe を読み込まない） -->
       <div v-if="post.youtube_id" class="youtube-embed">
@@ -206,13 +287,13 @@ function fmtDate(s) {
 
       <a
         v-if="post.image_url"
-        :href="post.image_url"
+        :href="resolveMediaUrl(post.image_url)"
         class="post-image-link"
         target="_blank"
         rel="noopener noreferrer"
       >
         <img
-          :src="post.image_url"
+          :src="resolveMediaUrl(post.image_url)"
           class="post-image"
           loading="lazy"
           :alt="'@' + post.username + ' の画像'"
@@ -223,7 +304,7 @@ function fmtDate(s) {
       <div
         v-if="menuOpen"
         class="post-menu-backdrop"
-        @click="menuOpen = false"
+        @click.stop="menuOpen = false"
       ></div>
       <div v-if="menuOpen" class="post-menu">
         <button
@@ -242,12 +323,12 @@ function fmtDate(s) {
           class="post-floppy-audio"
           controls
           preload="none"
-          :src="post.floppy_url"
+          :src="resolveMediaUrl(post.floppy_url)"
         ></audio>
 
         <a
           class="post-floppy"
-          :href="post.floppy_url"
+          :href="resolveMediaUrl(post.floppy_url)"
           :download="post.floppy_name || 'floppy.bin'"
         >
           <span class="post-floppy-icon" aria-hidden="true">
@@ -264,7 +345,7 @@ function fmtDate(s) {
 
       <div v-if="confirming" class="post-actions post-confirm">
         <span class="confirm-text">
-          この投稿を削除しますか？（{{ post.total_bytes.toLocaleString('ja-JP') }} bytes 解放）
+          この投稿を削除しますか？（{{ totalBytes.toLocaleString('ja-JP') }} bytes 解放）
         </span>
         <button
           type="button"

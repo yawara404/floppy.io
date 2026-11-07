@@ -20,6 +20,19 @@ class IdIn(BaseModel):
     id: int = 0
 
 
+class DiskIn(BaseModel):
+    # コミュニティ「ディスク」の作成
+    name: str = ""
+    slug: str = ""
+    description: str = ""
+
+
+class DiskRefIn(BaseModel):
+    # 参加 / 退出の対象（slug か id のどちらか）
+    slug: str = ""
+    id: int = 0
+
+
 class FollowIn(BaseModel):
     username: str = ""
     id: int = 0

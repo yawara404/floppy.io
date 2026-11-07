@@ -1282,6 +1282,27 @@ select {
   border-bottom: 1px dashed var(--line);
 }
 
+/* 投稿フォームの書き込み先ディスク */
+.composer-disk {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  color: var(--accent-deep);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.02em;
+}
+
+.composer-disk:hover {
+  color: var(--accent-deep);
+  text-decoration: underline;
+}
+
+.composer-disk-key {
+  color: var(--orange);
+}
+
 .composer-title {
   margin: 4px 0 0;
   font-size: 19px;
@@ -1739,6 +1760,145 @@ textarea.input {
   flex: 0 0 auto;
 }
 
+/* 入力中のサジェスト */
+.search-field {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.suggest-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  z-index: 45;
+  max-height: 340px;
+  overflow-y: auto;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  box-shadow: 4px 4px 0 var(--shadow);
+}
+
+.suggest-state {
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.suggest-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border-bottom: 1px dashed var(--line);
+  background: transparent;
+  color: var(--ink);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.suggest-item:last-of-type {
+  border-bottom: 0;
+}
+
+.suggest-item.active,
+.suggest-item:hover {
+  background: var(--accent-soft);
+}
+
+.suggest-item mark {
+  padding: 0 1px;
+  background: #fff3a8;
+  color: var(--ink);
+}
+
+.suggest-mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--ink);
+  background: var(--paper-2);
+  color: var(--accent-deep);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.suggest-avatar {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  overflow: hidden;
+  border: 1px solid var(--ink);
+  background: #ffffff;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.suggest-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+
+.suggest-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.suggest-title {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggest-sub {
+  overflow: hidden;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggest-badge,
+.suggest-key {
+  flex: 0 0 auto;
+  padding: 1px 4px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 7px;
+  letter-spacing: 0.04em;
+}
+
+.suggest-hint {
+  margin: 0;
+  padding: 6px 10px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 7px;
+}
+
 /* ------------------------------------------------------------------
    容量メーター (DiskGauge)
    ------------------------------------------------------------------ */
@@ -1927,6 +2087,7 @@ textarea.input {
 }
 
 .post-pixel,
+.post-avatar-image,
 .post-avatar-fallback {
   display: block;
   width: 44px;
@@ -1935,6 +2096,10 @@ textarea.input {
   image-rendering: crisp-edges;
   border: 1px solid var(--ink);
   background: #ffffff;
+}
+
+.post-avatar-image {
+  object-fit: cover;
 }
 
 .post-avatar-fallback {
@@ -2237,6 +2402,14 @@ textarea.input {
   letter-spacing: 0.04em;
 }
 
+/* 投稿の書き込み先ディスク */
+.post-disk {
+  color: var(--accent-deep);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.03em;
+}
+
 .reply-btn:disabled {
   color: var(--muted);
   cursor: not-allowed;
@@ -2314,6 +2487,358 @@ textarea.input {
 
 .thread-list {
   margin-top: 14px;
+}
+
+/* ------------------------------------------------------------------
+   投稿の個別ビュー (旧 Twitter / mixi 風のシンプルな 1 枚)
+   ------------------------------------------------------------------ */
+.detail-page {
+  display: block;
+}
+
+.detail-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.detail-breadcrumb a {
+  color: var(--link);
+}
+
+.detail-post {
+  padding: 18px 18px 16px;
+}
+
+.detail-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.detail-avatar {
+  display: block;
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border: 1px solid var(--ink);
+  background: #ffffff;
+}
+
+.detail-avatar canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.detail-avatar-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.detail-author {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.detail-name {
+  display: block;
+  color: var(--accent-deep);
+  font-family: var(--font-display);
+  font-size: 16px;
+  line-height: 1.3;
+  text-decoration: none;
+}
+
+.detail-name:hover {
+  color: var(--link);
+  text-decoration: underline;
+}
+
+.detail-handle {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.detail-kind {
+  flex: 0 0 auto;
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  color: var(--accent-deep);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+}
+
+.detail-text {
+  margin: 14px 0 0;
+  font-size: 16px;
+  line-height: 1.9;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.detail-pixel-wrap {
+  max-width: 380px;
+  margin: 14px auto 0;
+  padding: 10px;
+  border: 2px solid var(--ink);
+  background: #ffffff;
+  box-shadow: 3px 3px 0 var(--shadow);
+}
+
+.detail-pixel {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 360px;
+  margin: 0 auto;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.detail-youtube {
+  margin-top: 14px;
+}
+
+.detail-image-link {
+  display: block;
+  margin-top: 14px;
+}
+
+.detail-image {
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  background: #ffffff;
+}
+
+.detail-floppy-wrap {
+  margin-top: 14px;
+}
+
+.detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.detail-meta a {
+  color: var(--accent-deep);
+}
+
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.detail-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 1px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.4;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.detail-action b {
+  color: var(--ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-action:hover {
+  color: var(--accent-deep);
+  text-decoration: none;
+}
+
+.detail-like.active,
+.detail-like.active b {
+  color: var(--pink);
+}
+
+.detail-action.danger {
+  margin-left: auto;
+  color: var(--danger);
+}
+
+.detail-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px dashed var(--danger);
+  background: #fff5f5;
+  font-size: 11px;
+}
+
+/* 返信（投稿者が許可したときだけ表示） */
+.detail-thread {
+  margin-top: 16px;
+}
+
+.detail-thread-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.detail-thread-count {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+}
+
+.reply-bubbles {
+  margin-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+.reply-bubble {
+  display: flex;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px dotted var(--line);
+}
+
+.reply-bubble:last-child {
+  border-bottom: 0;
+}
+
+.reply-bubble-avatar {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  border: 1px solid var(--ink);
+  background: #ffffff;
+}
+
+.reply-bubble-avatar canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.reply-bubble-avatar-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.reply-bubble-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.reply-bubble-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.reply-bubble-name {
+  color: var(--accent-deep);
+  font-family: var(--font-display);
+  font-size: 13px;
+}
+
+.reply-bubble-handle,
+.reply-bubble-date {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+}
+
+.reply-bubble-text {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.reply-bubble-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.reply-bubble-actions .link-btn {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.reply-bubble-actions .link-btn.liked {
+  color: var(--pink);
+}
+
+.reply-bubble-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-thread-empty {
+  margin-top: 12px;
+  padding: 18px;
+  border: 2px dashed var(--line);
+  text-align: center;
+}
+
+.detail-thread-empty p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* カード全体クリック */
+.post-clickable {
+  cursor: pointer;
+}
+
+.post-clickable .post-no {
+  color: var(--muted);
+}
+
+.post-clickable .post-no:hover {
+  color: var(--link);
 }
 
 /* 空状態 / 読み込み中 / DAT フッター */
@@ -3492,6 +4017,17 @@ textarea.input {
   font-size: 8px;
 }
 
+/* 共有ページのカードに出す画像 / YouTube サムネイル */
+.floppy-card-media {
+  display: block;
+  width: 100%;
+  max-height: 150px;
+  margin-top: 6px;
+  border: 1px solid var(--line-strong);
+  background: #ffffff;
+  object-fit: cover;
+}
+
 .shared-post-stage {
   display: flex;
   justify-content: center;
@@ -3604,6 +4140,543 @@ textarea.input {
   display: flex;
   justify-content: flex-end;
   margin-top: 7px;
+}
+
+/* ------------------------------------------------------------------
+   共有ダイアログ (X / Twitter 風のカード)
+   ------------------------------------------------------------------ */
+body.is-modal-open {
+  overflow: hidden;
+}
+
+.share-window {
+  max-width: 520px;
+}
+
+.share-note {
+  margin-top: 0;
+}
+
+/* 共有カード (サイトの投稿と同じ配色) */
+.share-card {
+  display: block;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  box-shadow: 4px 4px 0 var(--shadow);
+  color: var(--ink);
+  line-height: 1.7;
+  text-decoration: none;
+}
+
+.share-card:hover,
+.share-card:focus {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.share-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.share-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 12px;
+  border-bottom: 2px solid var(--header-ink);
+  background: var(--header);
+  color: var(--header-ink);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+}
+
+.share-card-body {
+  display: block;
+  padding: 12px;
+}
+
+.share-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.share-card-avatar {
+  display: block;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  padding: 2px;
+  overflow: hidden;
+  border: 1px solid var(--ink);
+  background: #ffffff;
+}
+
+.share-card-avatar canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.share-card-who {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.share-card-name {
+  display: block;
+  overflow: hidden;
+  color: var(--accent-deep);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-card-handle {
+  display: block;
+  overflow: hidden;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-card-sub {
+  display: block;
+  margin-top: 1px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+}
+
+.share-card-kind {
+  flex: 0 0 auto;
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  color: var(--accent-deep);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+}
+
+.share-card-text {
+  display: block;
+  margin-top: 10px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.share-card-link {
+  color: var(--link);
+  word-break: break-all;
+}
+
+.share-card-media {
+  display: block;
+  margin-top: 10px;
+}
+
+.share-card-media-frame {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border: 2px solid var(--ink);
+  background: #ffffff;
+  line-height: 0;
+}
+
+.share-card-media-frame img {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+}
+
+.share-card-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 260px;
+  padding: 10px;
+  background: #ffffff;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.share-card-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border: 2px solid var(--ink);
+  background: rgba(255, 253, 247, 0.92);
+  color: var(--ink);
+  font-size: 17px;
+  transform: translate(-50%, -50%);
+}
+
+.share-card-youtube-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  justify-content: space-between;
+  margin-top: 4px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.share-card-youtube-open {
+  color: var(--link);
+}
+
+.share-card-file {
+  display: block;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.share-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.share-card-like {
+  color: var(--pink);
+}
+
+.share-card-open {
+  margin-left: auto;
+  color: var(--link);
+}
+
+/* 共有先ボタン */
+.share-quick {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.share-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 66px;
+  padding: 9px 4px;
+  border: 2px solid var(--line-strong);
+  background: var(--paper-2);
+  box-shadow: 2px 2px 0 var(--shadow);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  line-height: 1.3;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.share-action:hover {
+  background: var(--paper-3);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.share-action:active {
+  box-shadow: none;
+  transform: translate(2px, 2px);
+}
+
+.share-action-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--ink);
+  background: #ffffff;
+  font-family: var(--font-display);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.share-action-x .share-action-mark {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-body);
+  font-weight: 700;
+}
+
+.share-action-line .share-action-mark {
+  border-color: #068f43;
+  background: #06c755;
+  color: #ffffff;
+  font-family: var(--font-body);
+  font-weight: 700;
+}
+
+.share-status {
+  min-height: 1.3em;
+  margin: 8px 0 0;
+  color: var(--accent-deep);
+  font-family: var(--font-mono);
+  font-size: 8px;
+}
+
+/* 埋め込み HTML（折りたたみ） */
+.share-embed {
+  margin-top: 12px;
+  border-top: 1px dashed var(--line);
+  padding-top: 8px;
+}
+
+.share-embed summary {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.share-embed summary:hover {
+  color: var(--ink);
+}
+
+.share-embed-body {
+  padding-top: 6px;
+}
+
+/* ------------------------------------------------------------------
+   ディスク (コミュニティ)
+   ------------------------------------------------------------------ */
+.disks-hero {
+  margin-bottom: 14px;
+  padding: 4px 2px 14px;
+  border-bottom: 2px solid var(--line);
+}
+
+.disks-title {
+  margin: 2px 0 6px;
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 1.2;
+}
+
+.disks-lead {
+  max-width: 640px;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.disks-toolbar {
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.disk-search {
+  width: min(240px, 100%);
+  margin-left: auto;
+}
+
+.disk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.disk-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 132px;
+  padding: 12px;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  box-shadow: 3px 3px 0 var(--shadow);
+  color: var(--ink);
+  text-decoration: none;
+  transition: transform 0.1s steps(2, end), box-shadow 0.1s steps(2, end),
+    background 0.1s steps(2, end);
+}
+
+.disk-card:hover {
+  background: var(--paper-2);
+  color: var(--ink);
+  text-decoration: none;
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--shadow);
+}
+
+.disk-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.disk-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.disk-card-icon,
+.disk-hero-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--ink);
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.disk-card-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 15px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.disk-card-joined {
+  flex: 0 0 auto;
+  padding: 1px 4px;
+  border: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font-family: var(--font-mono);
+  font-size: 7px;
+  letter-spacing: 0.06em;
+}
+
+.disk-card-slug {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+}
+
+.disk-card-desc {
+  display: -webkit-box;
+  flex: 1 1 auto;
+  overflow: hidden;
+  color: var(--ink-2);
+  font-size: 11px;
+  line-height: 1.6;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.disk-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 10px;
+  margin-top: 2px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+}
+
+/* ディスク作成フォーム */
+.disk-create {
+  margin-top: 18px;
+}
+
+.disk-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.disk-hint {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+}
+
+/* ディスク個別ページ */
+.disk-hero {
+  margin-bottom: 14px;
+}
+
+.disk-hero-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 6px;
+}
+
+.disk-hero-icon {
+  width: 36px;
+  height: 36px;
+  font-size: 11px;
+}
+
+.disk-hero-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 1.2;
+}
+
+.disk-hero-desc {
+  margin: 0 0 8px;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.disk-hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 8px 0 12px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
 }
 
 /* ------------------------------------------------------------------
@@ -4347,6 +5420,10 @@ a {
     flex-wrap: wrap;
   }
 
+  .search-field {
+    flex: 1 1 100%;
+  }
+
   .search-box {
     flex: 1 1 100%;
   }
@@ -4392,6 +5469,53 @@ a {
     padding: 12px;
   }
 
+  .share-quick {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .share-card-media-frame img {
+    max-height: 200px;
+  }
+
+  .detail-post {
+    padding: 14px 12px;
+  }
+
+  .detail-avatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  .detail-text {
+    font-size: 15px;
+  }
+
+  .detail-actions {
+    gap: 12px;
+  }
+
+  .detail-action.danger {
+    margin-left: 0;
+  }
+
+  .disks-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .disk-search {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .disk-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .disk-hero-title {
+    font-size: 22px;
+  }
+
   .floppy-card {
     max-width: 100%;
   }
@@ -4419,6 +5543,10 @@ a {
 @media (max-width: 420px) {
   .brand-word {
     font-size: 16px;
+  }
+
+  .disk-grid {
+    grid-template-columns: 1fr;
   }
 
   .gnav-more-btn {

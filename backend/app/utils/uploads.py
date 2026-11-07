@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import secrets
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from fastapi import Request
 
@@ -103,9 +103,41 @@ def is_audio_ext(name: str) -> bool:
     return Path(str(name)).suffix.lstrip(".").lower() in AUDIO_CONTENT_TYPES
 
 
+def upload_exists(name: str | None) -> bool:
+    """DB に記録されたファイルが実在するか"""
+    if not name:
+        return False
+    safe = Path(str(name)).name
+    if safe in ("", ".", ".."):
+        return False
+    try:
+        return (UPLOAD_DIR / safe).is_file()
+    except OSError:
+        return False
+
+
+def public_base_path() -> str:
+    """公開 URL のパス部分 (例: /floppy.io/)。
+
+    PUBLIC_BASE_URL が未設定ならルート配信とみなす。
+    """
+    if PUBLIC_BASE_URL:
+        path = urlparse(PUBLIC_BASE_URL).path or "/"
+        return path if path.endswith("/") else path + "/"
+    return "/"
+
+
 def upload_url(name: str | None) -> str | None:
-    """DB のファイル名 → ブラウザ用の相対 URL"""
-    return f"./uploads/{quote(name)}" if name else None
+    """DB のファイル名 → ブラウザ用の URL
+
+    以前は './uploads/xxx' という相対 URL を返していたが、SPA の
+    /u/name や /p/12 では '/u/uploads/xxx' に解決されて 404 になっていた。
+    アプリの baseURL を前置した絶対パスを返す。
+    実ファイルが無い場合も None を返し、壊れた画像アイコンを出さない。
+    """
+    if not upload_exists(name):
+        return None
+    return f"{public_base_path()}uploads/{quote(str(name))}"
 
 
 def absolute_base(request: Request) -> str:
@@ -116,9 +148,9 @@ def absolute_base(request: Request) -> str:
 
 
 def absolute_upload_url(request: Request, name: str | None) -> str | None:
-    return (
-        f"{absolute_base(request)}uploads/{quote(name)}" if name else None
-    )
+    if not upload_exists(name):
+        return None
+    return f"{absolute_base(request)}uploads/{quote(str(name))}"
 
 
 def validate_floppy_filename(name: str) -> bool:

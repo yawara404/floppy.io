@@ -3,6 +3,7 @@ import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import {
   currentUser,
   isLoggedIn,
+  authReady,
   loadMe,
   logout,
 } from '~/composables/useAuth'
@@ -12,11 +13,17 @@ const route = useRoute()
 const menuOpen = ref(false)
 const moreMenuOpen = ref(false)
 const moreMenuRef = ref(null)
+const navToggle = ref(null)
+const moreToggle = ref(null)
 
 const path = computed(() => route.path || '/')
 const isProfilePage = computed(() => /^\/u\/[^/]+$/.test(path.value))
-const isHome = computed(() => path.value === '/')
-const isFollowing = computed(() => path.value === '/following')
+const isHome = computed(() => path.value === '/' || path.value === '/following')
+const isLanding = computed(() => path.value === '/' && authReady.value && !isLoggedIn.value)
+
+const isDisks = computed(
+  () => path.value === '/disks' || /^\/d\/[^/]+$/.test(path.value),
+)
 const isMoreActive = computed(
   () => path.value === '/settings' || path.value === '/help',
 )
@@ -44,6 +51,8 @@ function onDocumentClick(event) {
 
 function onKeydown(event) {
   if (event.key === 'Escape') {
+    if (menuOpen.value) navToggle.value?.focus()
+    else if (moreMenuOpen.value) moreToggle.value?.focus()
     menuOpen.value = false
     moreMenuOpen.value = false
   }
@@ -150,10 +159,12 @@ onMounted(() => {
     <header class="topbar">
       <div class="topbar-inner">
         <button
+          ref="navToggle"
           type="button"
           class="hamburger"
           :class="{ open: menuOpen }"
           :aria-expanded="menuOpen ? 'true' : 'false'"
+          aria-controls="primary-nav"
           aria-label="メニュー"
           @click="menuOpen = !menuOpen; moreMenuOpen = false"
         >
@@ -172,16 +183,17 @@ onMounted(() => {
           <span class="brand-badge">1.44MB</span>
         </NuxtLink>
 
-        <nav class="nav" :class="{ open: menuOpen }">
-          <NuxtLink class="nav-link" :class="{ active: isHome }" to="/">
+        <nav id="primary-nav" class="nav" :class="{ open: menuOpen }" aria-label="メインナビゲーション">
+          <NuxtLink class="nav-link" :class="{ active: isHome }" :aria-current="isHome ? 'page' : undefined" to="/">
             ホーム
           </NuxtLink>
-          <NuxtLink class="nav-link" :class="{ active: isFollowing }" to="/following">
-            フォロー中
+          <NuxtLink class="nav-link" :class="{ active: isDisks }" :aria-current="isDisks ? 'page' : undefined" to="/disks">
+            ディスク
           </NuxtLink>
           <NuxtLink
             class="nav-link"
             :class="{ active: path === '/search' }"
+            :aria-current="path === '/search' ? 'page' : undefined"
             to="/search"
           >
             検索
@@ -189,6 +201,7 @@ onMounted(() => {
           <NuxtLink
             class="nav-link"
             :class="{ active: isProfilePage }"
+            :aria-current="isProfilePage ? 'page' : undefined"
             :to="profileHref"
           >
             プロフィール
@@ -208,25 +221,25 @@ onMounted(() => {
           <!-- 設定 / ヘルプ / ログアウトは右端の三点メニューに集約 -->
           <div ref="moreMenuRef" class="gnav-more">
             <button
+              ref="moreToggle"
               type="button"
               class="gnav-more-btn"
               :class="{ active: isMoreActive || moreMenuOpen }"
               :aria-expanded="moreMenuOpen ? 'true' : 'false'"
-              aria-haspopup="menu"
+              aria-controls="more-navigation"
               aria-label="設定とヘルプ"
               @click.stop="moreMenuOpen = !moreMenuOpen; menuOpen = false"
             >
               <span aria-hidden="true">⋮</span>
             </button>
 
-            <div v-if="moreMenuOpen" class="gnav-more-menu" role="menu">
+            <div v-if="moreMenuOpen" id="more-navigation" class="gnav-more-menu">
               <div class="gnav-more-head">MENU / FLOPPY.IO</div>
 
               <NuxtLink
                 class="gnav-more-item"
                 :class="{ active: path === '/settings' }"
                 to="/settings"
-                role="menuitem"
                 @click="moreMenuOpen = false"
               >
                 <span class="gnav-more-key">SET</span>設定
@@ -235,7 +248,6 @@ onMounted(() => {
                 class="gnav-more-item"
                 :class="{ active: path === '/help' }"
                 to="/help"
-                role="menuitem"
                 @click="moreMenuOpen = false"
               >
                 <span class="gnav-more-key">HLP</span>ヘルプ
@@ -247,8 +259,7 @@ onMounted(() => {
                 <button
                   type="button"
                   class="gnav-more-item danger"
-                  role="menuitem"
-                  @click="onLogout"
+                    @click="onLogout"
                 >
                   <span class="gnav-more-key">OUT</span>ログアウト
                 </button>
@@ -257,16 +268,14 @@ onMounted(() => {
                 <NuxtLink
                   class="gnav-more-item"
                   to="/login"
-                  role="menuitem"
-                  @click="moreMenuOpen = false"
+                    @click="moreMenuOpen = false"
                 >
                   <span class="gnav-more-key">IN</span>ログイン
                 </NuxtLink>
                 <NuxtLink
                   class="gnav-more-item"
                   to="/register"
-                  role="menuitem"
-                  @click="moreMenuOpen = false"
+                    @click="moreMenuOpen = false"
                 >
                   <span class="gnav-more-key">NEW</span>新規登録
                 </NuxtLink>
@@ -280,7 +289,7 @@ onMounted(() => {
     <!-- モバイル: メニュー外をタップしたら閉じる -->
     <div v-if="menuOpen" class="nav-backdrop" @click="menuOpen = false"></div>
 
-    <div class="page" :class="{ 'page-profile': isProfilePage }">
+    <div class="page" :class="{ 'page-profile': isProfilePage, 'page-landing': isLanding }">
       <!-- 左カラム -->
       <aside class="sidebar" :class="{ 'sidebar-guest': !isLoggedIn }">
         <ProfileCard v-if="isLoggedIn" :user="currentUser" />
@@ -333,6 +342,7 @@ onMounted(() => {
 
         <nav class="footer-nav" aria-label="フッターナビゲーション">
           <NuxtLink to="/">タイムライン</NuxtLink>
+          <NuxtLink to="/disks">ディスク</NuxtLink>
           <NuxtLink to="/search">検索</NuxtLink>
           <NuxtLink to="/help">ヘルプ</NuxtLink>
           <NuxtLink to="/settings">設定</NuxtLink>

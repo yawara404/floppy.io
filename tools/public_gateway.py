@@ -11,7 +11,8 @@ https://fdd.wawa-app.me/floppy.io/ を、このマシン上の
     /floppy.io/            -> frontend/dist/index.html
     /floppy.io/_nuxt/...   -> frontend/dist/_nuxt/...
     /floppy.io/u/name      -> frontend/dist/index.html (履歴モードの SPA フォールバック)
-    /floppy.io/p/12        -> frontend/dist/index.html (履歴モードの SPA フォールバック)
+    /floppy.io/p/12        -> frontend/dist/index.html (人間のブラウザ)
+    /floppy.io/p/12        -> FastAPI /api/og/post/12 (SNS クローラー向け投稿別 OGP)
     /floppy.io/api/...     -> FastAPI /api/...
     /floppy.io/uploads/... -> FastAPI /uploads/...
 
@@ -27,6 +28,7 @@ from __future__ import annotations
 
 import mimetypes
 import os
+import re
 from pathlib import Path
 
 import httpx
@@ -41,6 +43,18 @@ DIST_DIR = (BASE_DIR / "frontend" / "dist").resolve()
 API_URL = os.getenv("FLOPPY_API_URL", "http://127.0.0.1:8001").rstrip("/")
 WEB_PORT = int(os.getenv("FLOPPY_WEB_PORT", "8899"))
 PREFIX = "/floppy.io"
+
+# SNS / ブックマーク系のクローラー。これらにだけ投稿別の OGP HTML を返す。
+# （人間のブラウザや検索エンジンには従来どおり frontend/dist の SPA を返す）
+BOT_USER_AGENT = re.compile(
+    r"(Twitterbot|facebookexternalhit|Facebot|Slackbot|Discordbot|LinkedInBot|"
+    r"TelegramBot|WhatsApp|Pinterest|redditbot|Embedly|Iframely|Mastodon|"
+    r"Misskey|Bluesky|Line/|Hatena)",
+    re.IGNORECASE,
+)
+
+# 投稿個別ページ /p/123（末尾スラッシュ可）
+POST_PATH = re.compile(r"^p/(\d+)/?$")
 
 # 上流にそのまま渡さないヘッダー
 _HOP_BY_HOP = {
@@ -155,6 +169,11 @@ async def floppy(request: Request) -> Response:
         return await _proxy(request, "/" + path)
     if path == "uploads" or path.startswith("uploads/"):
         return await _proxy(request, "/" + path)
+
+    # 投稿個別ページ + SNS クローラー → 投稿別 OGP HTML (Twitter カード用)
+    post_match = POST_PATH.fullmatch(path)
+    if post_match and BOT_USER_AGENT.search(request.headers.get("user-agent", "")):
+        return await _proxy(request, f"/api/og/post/{post_match.group(1)}")
 
     # それ以外は frontend/dist の静的ファイル
     return await _serve_static(path)

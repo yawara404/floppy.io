@@ -1,11 +1,9 @@
 <script setup>
-import { ref, watch, nextTick, onBeforeUnmount } from 'vue'
+import { ref, nextTick } from 'vue'
 import PostItem from './PostItem.vue'
-import FloppyCard from './FloppyCard.vue'
-import { apiGet, apiPost, apiDelete } from '~/utils/api'
+import ShareDialog from './ShareDialog.vue'
+import { apiPost, apiDelete } from '~/utils/api'
 import { isLoggedIn, currentUser, refreshUser } from '~/composables/useAuth'
-
-const router = useRouter()
 
 const props = defineProps({
   posts: { type: Array, default: () => [] },
@@ -20,59 +18,19 @@ const emit = defineEmits(['changed'])
 
 const error = ref('')
 const sharePost = ref(null)
-const embedHtml = ref('')
-const shareUrl = ref('')
-const copied = ref('')
-const modalClose = ref(null)
 let lastFocused = null
 
-function onModalKeydown(event) {
-  if (event.key === 'Escape') closeShare()
-}
-
-async function openShare(post) {
+function openShare(post) {
   lastFocused = typeof document !== 'undefined' ? document.activeElement : null
   sharePost.value = post
-  shareUrl.value = buildShareUrl(post)
-  embedHtml.value = ''
-  copied.value = ''
-
-  try {
-    const data = await apiGet(`/preview?id=${post.id}`)
-    embedHtml.value = data.html || ''
-  } catch (e) {
-    embedHtml.value = '（プレビューの取得に失敗しました）'
-  }
 }
 
-function closeShare() {
+// ダイアログを閉じたら、開く前に押していた「共有」ボタンへフォーカスを戻す
+async function closeShare() {
   sharePost.value = null
-  embedHtml.value = ''
-  shareUrl.value = ''
-  copied.value = ''
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('keydown', onModalKeydown)
-  }
+  await nextTick()
   lastFocused?.focus?.()
 }
-
-watch(sharePost, async (post) => {
-  if (typeof window === 'undefined') return
-
-  if (post) {
-    window.addEventListener('keydown', onModalKeydown)
-    await nextTick()
-    modalClose.value?.focus()
-  } else {
-    window.removeEventListener('keydown', onModalKeydown)
-  }
-})
-
-onBeforeUnmount(() => {
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('keydown', onModalKeydown)
-  }
-})
 
 async function removePost(post) {
   error.value = ''
@@ -103,41 +61,8 @@ async function toggleLike(post) {
   }
 }
 
-// 投稿ごとの共有リンク（履歴モードの /p/ID を開く）
-function buildShareUrl(post) {
-  if (typeof window === 'undefined') return ''
-  return `${window.location.origin}${router.resolve('/p/' + post.id).href}`
-}
-
 function canDelete(post) {
   return isLoggedIn.value && currentUser.value?.id === post.user_id
-}
-
-// クリップボードへコピー（非対応環境は textarea フォールバック）
-async function copyText(text, label) {
-  if (!text) return
-
-  try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(text)
-    } else {
-      const ta = document.createElement('textarea')
-      ta.value = text
-      ta.style.position = 'fixed'
-      ta.style.opacity = '0'
-      document.body.appendChild(ta)
-      ta.select()
-      document.execCommand('copy')
-      document.body.removeChild(ta)
-    }
-
-    copied.value = label
-    setTimeout(() => {
-      if (copied.value === label) copied.value = ''
-    }, 2000)
-  } catch (e) {
-    copied.value = ''
-  }
 }
 </script>
 
@@ -184,63 +109,11 @@ async function copyText(text, label) {
       </div>
     </template>
 
-    <!-- 共有ダイアログ -->
-    <div
+    <!-- 共有ダイアログ (X / Twitter 風のカード) -->
+    <ShareDialog
       v-if="sharePost"
-      class="modal-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="share-title"
-      @click.self="closeShare"
-    >
-      <div class="modal-window">
-        <div class="modal-head">
-          <span id="share-title">[LINK] 共有</span>
-          <button
-            ref="modalClose"
-            type="button"
-            class="modal-close"
-            aria-label="閉じる"
-            @click="closeShare"
-          >
-            ×
-          </button>
-        </div>
-        <div class="modal-body">
-          <FloppyCard :post="sharePost" />
-
-          <p class="modal-note">共有リンク:</p>
-          <div class="share-link-row">
-            <input
-              class="input share-link"
-              type="text"
-              readonly
-              :value="shareUrl"
-              aria-label="共有リンク"
-              @focus="$event.target.select()"
-            />
-            <button
-              type="button"
-              class="btn btn-sm"
-              @click="copyText(shareUrl, 'link')"
-            >
-              {{ copied === 'link' ? 'コピー済み' : 'コピー' }}
-            </button>
-          </div>
-
-          <p class="modal-note">外部サイトに貼り付ける HTML:</p>
-          <textarea class="input embed-code" readonly :value="embedHtml"></textarea>
-          <div class="share-actions">
-            <button
-              type="button"
-              class="btn btn-sm"
-              @click="copyText(embedHtml, 'embed')"
-            >
-              {{ copied === 'embed' ? 'コピー済み' : 'HTML をコピー' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+      :post="sharePost"
+      @close="closeShare"
+    />
   </div>
 </template>

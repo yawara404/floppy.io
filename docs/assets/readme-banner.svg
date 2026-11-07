@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420" role="img" aria-labelledby="title description">
+  <title id="title">floppy.io — 1投稿1.44MBしか使えない静寂のレトロSNS</title>
+  <desc id="description">生成りの背景とミント色のヘッダー、ピクセルのフロッピーで表現したサイト紹介。1 投稿の容量上限は 1,474,560 バイト。</desc>
+  <defs>
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M24 0H0V24" fill="none" stroke="#e4e8dc"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="420" fill="#fffdf7"/>
+  <rect width="1200" height="420" fill="url(#grid)"/>
+  <path d="M0 0H1200V108H0Z" fill="#cfe9d8"/>
+  <path d="M0 108H1200" stroke="#174d35" stroke-width="3"/>
+  <g transform="translate(48 28) scale(3)" shape-rendering="crispEdges">
+    <path d="M0 0H16V16H0Z" fill="#174d35"/>
+    <path d="M4 0H12V6H4Z M3 9H13V15H3Z" fill="#cfe9d8"/>
+    <path d="M8 1H11V5H8Z" fill="#174d35"/>
+  </g>
+  <g font-family="'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif">
+    <text x="116" y="76" font-size="46" font-weight="700" fill="#174d35">floppy.io</text>
+    <text x="48" y="205" font-size="38" font-weight="700" fill="#23262b">1投稿1.44MBしか使えない静寂のレトロSNS</text>
+    <text x="48" y="264" font-size="23" fill="#4d524d">言葉も、ドット絵も、小さな音楽も。1 投稿をフロッピー 1 枚分に。</text>
+  </g>
+  <path d="M48 322H1152" stroke="#cec8b5" stroke-width="2" stroke-dasharray="4 6"/>
+  <g font-family="ui-monospace, monospace" font-size="18" fill="#174d35">
+    <text x="48" y="370">1 POST = 1,474,560 BYTES</text>
+    <text x="1152" y="370" text-anchor="end">A QUIET RETRO SNS</text>
+  </g>
+</svg>

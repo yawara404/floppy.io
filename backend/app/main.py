@@ -21,7 +21,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from .config import API_DOCS_ENABLED, CORS_ORIGINS, DISK_LIMIT_BYTES
 from .db import fetch_all, fetch_one
-from .routers import auth, posts, social, uploads, users
+from .routers import auth, disks, og, posts, search, social, uploads, users
 from .utils.uploads import ensure_upload_dir
 
 logger = logging.getLogger("floppy.io")
@@ -34,7 +34,7 @@ DISK_FREE_WARN_BYTES = 100 * 1024 * 1024
 # 認証 (public_user) や一覧取得が参照するテーブル。
 # 旧 PHP 版の DB をそのまま使うと follows が無く、ログイン / 新規登録が
 # 一律 503 になるため、起動時に不足を検知してログに出す。
-REQUIRED_TABLES = ("users", "api_tokens", "posts", "likes", "follows")
+REQUIRED_TABLES = ("users", "api_tokens", "posts", "likes", "follows", "disks", "disk_members")
 
 # MySQL のエラーコード
 ER_NO_SUCH_TABLE = 1146
@@ -221,6 +221,9 @@ def health() -> JSONResponse:
 
 app.include_router(auth.router)
 app.include_router(posts.router)
+app.include_router(disks.router)
+app.include_router(search.router)
+app.include_router(og.router)
 app.include_router(users.router)
 app.include_router(social.router)
 app.include_router(uploads.router)

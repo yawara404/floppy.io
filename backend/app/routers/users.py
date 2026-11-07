@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import RedirectResponse, Response
 
 from ..config import DISK_LIMIT_BYTES
 from ..db import execute, fetch_all, fetch_one
+from ..disks import attach_disks
 from ..posts import POST_COLUMNS, attach_likes, attach_reply_counts, with_media
 from ..schemas import IconPixelIn, PasswordIn, ProfileIn, ReplySettingIn
 from ..security import (
@@ -16,13 +18,110 @@ from ..security import (
     is_following,
     public_user,
     require_user,
+    user_avatar_pixel,
     verify_password,
 )
 from ..utils.images import validate_image_data
-from ..utils.pixels import normalize_icon_pixel
-from ..utils.uploads import delete_upload, save_upload
+from ..utils.pixels import normalize_icon_pixel, pixel_svg
+from ..utils.uploads import absolute_upload_url, delete_upload, save_upload, upload_url
 
 router = APIRouter(prefix="/api", tags=["users"])
+
+
+@router.get("/users/{username}/connections/{kind}")
+def get_connections(
+    request: Request,
+    username: str,
+    kind: str,
+    offset: int = Query(default=0, ge=0),
+) -> dict:
+    """公開プロフィールのフォロー関係。認証情報は返さず、50 件ずつ取得する。"""
+    if kind not in ("following", "followers"):
+        raise HTTPException(400, "一覧の種類が正しくありません。")
+    owner = fetch_one("SELECT id FROM users WHERE username = %s", (username.strip(),))
+    if not owner:
+        raise HTTPException(404, "ユーザーが見つかりません。")
+
+    me = current_user(request)
+    my_id = int(me["id"]) if me else 0
+    # 列名は上記で検証した種類からだけ選び、入力値はすべてバインドする。
+    owner_column, member_column = (
+        ("follower_id", "followee_id") if kind == "following"
+        else ("followee_id", "follower_id")
+    )
+    rows = fetch_all(
+        f"""SELECT u.id, u.username, u.display_name, u.bio, u.icon_pixel, u.avatar_path,
+                   EXISTS(SELECT 1 FROM follows mine
+                           WHERE mine.follower_id = %s AND mine.followee_id = u.id) AS following
+              FROM follows f JOIN users u ON u.id = f.{member_column}
+             WHERE f.{owner_column} = %s
+             ORDER BY f.created_at DESC, u.id DESC
+             LIMIT 51 OFFSET %s""",
+        (my_id, int(owner["id"]), offset),
+    )
+    return {
+        "users": [
+            {
+                "id": int(row["id"]), "username": row["username"],
+                "display_name": row["display_name"] or row["username"],
+                "bio": row["bio"], "icon_pixel": row.get("icon_pixel") or "",
+                "avatar_url": upload_url(row.get("avatar_path")),
+                "following": bool(row["following"]), "is_self": int(row["id"]) == my_id,
+            }
+            for row in rows[:50]
+        ],
+        "next_offset": offset + 50 if len(rows) > 50 else None,
+    }
+
+
+@router.get("/icon/{username}.svg")
+def get_icon_svg(request: Request, username: str) -> Response:
+    """投稿カード用のアバター画像を解決して返す。
+
+    優先順位（プロフィールと同じ）:
+      1. 32×32 のドット絵アイコン
+      2. アップロードされたプロフィール画像（リダイレクト）
+      3. 最新の正方形ドット絵投稿
+    どれも無ければ 404（フロントは [F] にフォールバックする）。
+    """
+    row = fetch_one(
+        "SELECT id, icon_pixel, avatar_path FROM users WHERE username = %s",
+        (username.strip(),),
+    )
+    if not row:
+        raise HTTPException(404, "ユーザーが見つかりません。")
+
+    icon = normalize_icon_pixel(row.get("icon_pixel"))
+    if icon:
+        return Response(
+            content=pixel_svg(icon, 32, 32, cell=8),
+            media_type="image/svg+xml",
+            headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        )
+
+    avatar_url = absolute_upload_url(request, row.get("avatar_path"))
+    if avatar_url:
+        return RedirectResponse(
+            avatar_url,
+            status_code=302,
+            headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        )
+
+    pixel = user_avatar_pixel(int(row["id"]))
+    if pixel:
+        return Response(
+            content=pixel_svg(
+                str(pixel["pixel"]),
+                int(pixel["width"]),
+                int(pixel["height"]),
+                cell=8,
+            ),
+            media_type="image/svg+xml",
+            headers={"Cache-Control": "public, max-age=300"},
+        )
+
+    raise HTTPException(404, "アイコンが設定されていません。")
+
 
 
 @router.get("/user")
@@ -56,8 +155,10 @@ def get_user(request: Request, username: str = "") -> dict:
 
     return {
         "user": user,
-        "posts": attach_reply_counts(
-            attach_likes([with_media(post) for post in posts], me)
+        "posts": attach_disks(
+            attach_reply_counts(
+                attach_likes([with_media(post) for post in posts], me)
+            )
         ),
     }
 

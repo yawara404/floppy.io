@@ -13,14 +13,24 @@ const props = defineProps({
 
 const posts = ref([])
 const error = ref('')
-const loading = ref(false)
+const loading = ref(true)
+let loadSequence = 0
 
 const isFollowingFeed = computed(() => props.feed === 'following')
 
-// 未ログインのタイムラインでのみランディング用ヒーローを出す
+// 未ログインの全体タイムラインでのみランディング用ヒーローを出す
 // (認証状態の復元前に一瞬表示されないよう authReady を待つ)
 const showLanding = computed(
   () => authReady.value && !isLoggedIn.value && !isFollowingFeed.value,
+)
+
+// 誰をフォローしているかは本人にしか見せないため、フォロー中 TL はログイン必須
+const needsLogin = computed(() => authReady.value && isFollowingFeed.value && !isLoggedIn.value)
+
+const emptyText = computed(() =>
+  isFollowingFeed.value
+    ? 'フォロー中のユーザーの投稿はまだありません。気になる人をフォローしてみましょう。'
+    : 'まだ投稿がありません。最初の 1 枚を書き込んでみましょう。',
 )
 
 function scrollToTimeline() {
@@ -29,17 +39,9 @@ function scrollToTimeline() {
     ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-
-// 誰をフォローしているかは本人にしか見せないため、フォロー中 TL はログイン必須
-const needsLogin = computed(() => isFollowingFeed.value && !isLoggedIn.value)
-
-const emptyText = computed(() =>
-  isFollowingFeed.value
-    ? 'フォロー中のユーザーの投稿はまだありません。気になる人をフォローしてみましょう。'
-    : 'まだ投稿がありません。最初の 1 枚を書き込んでみましょう。',
-)
-
 async function load() {
+  if (!authReady.value) return
+  const sequence = ++loadSequence
   error.value = ''
 
   // 未ログインでは取得できない（401）ので、案内だけ表示する
@@ -50,20 +52,20 @@ async function load() {
   }
 
   loading.value = true
+
   try {
     const path = isFollowingFeed.value ? '/posts?feed=following' : '/posts'
     const data = await apiGet(path)
-    posts.value = data.posts || []
+    if (sequence === loadSequence) posts.value = data.posts || []
   } catch (e) {
-    error.value = e.message
-    posts.value = []
+    if (sequence === loadSequence) error.value = e.message
   } finally {
-    loading.value = false
+    if (sequence === loadSequence) loading.value = false
   }
 }
 
 function onPosted(post) {
-  // フォロー中 TL にも自分の投稿が含まれるので、どちらのタブでも先頭に足す
+  // どちらのフィードでも自分の投稿を先頭に足す
   posts.value.unshift(post)
 }
 
@@ -74,7 +76,7 @@ watch(() => props.feed, load)
 watch(
   () => [isLoggedIn.value, authReady.value],
   () => {
-    if (isFollowingFeed.value) load()
+    if (authReady.value) load()
   },
 )
 
@@ -82,13 +84,13 @@ onMounted(load)
 </script>
 
 <template>
-  <div>
+  <div class="home-page">
     <!-- ランディング: 未ログインのタイムライン -->
     <section v-if="showLanding" class="hero" aria-labelledby="hero-title">
       <div class="hero-copy">
         <p class="hero-eyebrow">
           <span class="pulse-dot"></span>
-          FLOPPY ARCHIVE / ONLINE
+          A SMALL SPACE FOR YOUR IDEAS
         </p>
 
         <h1 id="hero-title" class="hero-title">
@@ -118,7 +120,7 @@ onMounted(load)
           </div>
           <div>
             <dt>PIXEL ART</dt>
-            <dd>256 B</dd>
+            <dd>1,024 B</dd>
           </div>
           <div>
             <dt>FEED</dt>
@@ -157,7 +159,7 @@ onMounted(load)
         </div>
 
         <span class="hero-chip chip-a">[READY] DISK 01</span>
-        <span class="hero-chip chip-b">16 × 16 DOT</span>
+        <span class="hero-chip chip-b">32 × 32 DOT</span>
         <span class="hero-chip chip-c">NO ALGORITHM</span>
       </div>
     </section>
@@ -176,12 +178,12 @@ onMounted(load)
 
       <article class="feature-card">
         <span class="feature-index">02 / PIXEL</span>
-        <h3>256 バイトのドット絵。</h3>
+        <h3>小さな絵に、大きな個性。</h3>
         <p>
-          16×16 のグリッドを 16 色で描く。画像に変換せず、
-          16 進数の文字列として保存するから、驚くほど軽い。
+          32×32 のキャンバスと、16 色のパレット。
+          絵を描くのが久しぶりでも、ひとマスから始められます。
         </p>
-        <span class="feature-tag">16 COLORS · 16 × 16</span>
+        <span class="feature-tag">16 COLORS · 32 × 32</span>
       </article>
 
       <article class="feature-card">
@@ -195,50 +197,51 @@ onMounted(load)
       </article>
     </section>
 
-    <!-- フォロー中 TL はログイン必須 -->
-    <div v-if="needsLogin" class="callout">
-      <span>フォロー中のタイムラインを見るにはログインが必要です。</span>
-      <NuxtLink class="btn btn-primary" to="/login">ログイン</NuxtLink>
-      <NuxtLink class="btn" to="/register">新規登録</NuxtLink>
-    </div>
-
-    <template v-else>
-      <template v-if="isLoggedIn">
-        <div class="section-head">
-          <div>
-            <p class="section-kicker">WRITE TO DISK</p>
-            <h2 class="section-title">今日のフロッピー</h2>
-            <p class="section-note">
-              本文・ドット絵・画像・ファイル。合計 1.44MB まで書き込めます。
-            </p>
-          </div>
-          <span class="timeline-count">DISK READY</span>
+    <template v-if="isLoggedIn">
+      <div class="section-head">
+        <div>
+          <p class="section-kicker">WRITE TO DISK</p>
+          <h2 class="section-title">今日のフロッピー</h2>
+          <p class="section-note">
+            本文・ドット絵・画像・ファイル。合計 1.44MB まで書き込めます。
+          </p>
         </div>
-
-        <Composer @posted="onPosted" />
-      </template>
-
-      <div v-else class="callout">
-        <span>投稿するにはアカウントが必要です。</span>
-        <NuxtLink class="btn btn-primary" to="/register">新規登録</NuxtLink>
-        <NuxtLink class="btn" to="/login">ログイン</NuxtLink>
+        <span class="timeline-count">DISK READY</span>
       </div>
+
+      <Composer @posted="onPosted" />
     </template>
 
-    <p v-if="error" class="msg msg-error">{{ error }}</p>
+    <div v-else-if="!needsLogin && !showLanding && authReady" class="callout">
+      <span>投稿するにはアカウントが必要です。</span>
+      <NuxtLink class="btn btn-primary" to="/register">新規登録</NuxtLink>
+      <NuxtLink class="btn" to="/login">ログイン</NuxtLink>
+    </div>
+
+    <NuxtLink v-if="showLanding" class="discover-link" to="/disks">
+      <span class="discover-mark" aria-hidden="true">[D]</span>
+      <span><strong>好きなものを、同じディスクに。</strong><span>趣味でつながるコミュニティを探す</span></span>
+      <span class="discover-arrow" aria-hidden="true">→</span>
+    </NuxtLink>
 
     <section id="timeline" class="timeline-wrap">
       <div class="section-head">
         <div>
-          <p class="section-kicker">LIVE FEED / CHRONOLOGICAL</p>
-          <h2 class="section-title">タイムライン</h2>
+          <p class="section-kicker">
+            {{ isFollowingFeed ? 'FOLLOWING / CHRONOLOGICAL' : 'LIVE FEED / CHRONOLOGICAL' }}
+          </p>
+          <h2 class="section-title">
+            {{ isFollowingFeed ? 'フォロー中' : 'タイムライン' }}
+          </h2>
         </div>
-        <span class="timeline-count">{{ posts.length }} POSTS</span>
+        <button type="button" class="link-btn feed-refresh" :disabled="loading" @click="load">
+          <span aria-hidden="true">↻</span> {{ loading ? '読み込み中…' : '更新する' }}
+        </button>
       </div>
 
       <div class="timeline-head">
-        <!-- タブ切り替え（URL も共有できる） -->
-        <nav class="feed-tabs">
+        <!-- ホームとディスク一覧をつなぐ（フィードの重複は廃止） -->
+        <nav class="feed-tabs" aria-label="フィード">
           <NuxtLink
             class="feed-tab"
             :class="{ active: !isFollowingFeed }"
@@ -251,12 +254,21 @@ onMounted(load)
             :aria-current="isFollowingFeed ? 'page' : undefined"
             to="/following"
           >フォロー中</NuxtLink>
+          <NuxtLink class="feed-tab" to="/disks">ディスク</NuxtLink>
         </nav>
         <span class="timeline-count">NEWEST FIRST</span>
       </div>
 
+      <div v-if="needsLogin" class="callout">
+        <span>フォロー中のタイムラインを見るにはログインが必要です。</span>
+        <NuxtLink class="btn btn-primary" to="/login">ログイン</NuxtLink>
+        <NuxtLink class="btn" to="/register">新規登録</NuxtLink>
+      </div>
+
+      <RequestError v-else-if="error" :message="error" @retry="load" />
+
       <PostList
-        v-if="!needsLogin"
+        v-else
         :posts="posts"
         :loading="loading"
         :empty-text="emptyText"

@@ -15,6 +15,34 @@ function resolveBase() {
 
 const TOKEN_KEY = 'floppy_token'
 
+/**
+ * API が返すアップロード URL を、現在のページ階層に依存しない URL にする。
+ *
+ * 以前の API は './uploads/xxx' を返していたため、/u/name では
+ * '/u/uploads/xxx' に解決されて画像が 404 になっていた。
+ * 絶対 URL / data: / blob: はそのまま返す。
+ */
+export function resolveMediaUrl(path) {
+  if (!path) return ''
+
+  const value = String(path)
+  if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(value)) return value
+
+  // '/api' または '/floppy.io/api' → '' または '/floppy.io'
+  const root = resolveBase().replace(/\/api\/?$/, '')
+
+  if (value.startsWith('/')) {
+    // '/uploads/...' と '/floppy.io/uploads/...' のどちらも、いまのアプリの
+    // ルート配下 (/uploads または /floppy.io/uploads) に置き直す。
+    // これで本番ビルドと開発サーバー (baseURL '/') の両方で表示できる。
+    const uploadsAt = value.indexOf('/uploads/')
+    if (uploadsAt >= 0) return `${root}${value.slice(uploadsAt)}`
+    return value
+  }
+
+  return `${root}/${value.replace(/^\.\//, '')}`
+}
+
 // サーバー停止 / DNS 不達 / オフライン時にブラウザが投げる TypeError を
 // そのまま見せると「Failed to fetch」で原因が分からないため差し替える。
 const OFFLINE_MESSAGE =
@@ -49,7 +77,11 @@ function errorMessage(data, res) {
   const message =
     data.error || data.detail || data.message || data.statusMessage
 
-  if (message) return message
+  if (typeof message === 'string' && message.trim()) return message
+  if (Array.isArray(message)) {
+    const messages = message.map((item) => item?.msg).filter((item) => typeof item === 'string')
+    if (messages.length) return messages.join(' / ')
+  }
 
   // リバースプロキシ (nginx / Vite) が返す「API に繋がらない」系のステータス。
   // 本文が HTML などで JSON でないため、ここで分かりやすい文言に差し替える。
@@ -57,26 +89,36 @@ function errorMessage(data, res) {
     return OFFLINE_MESSAGE
   }
 
-  return `Request failed (${res.status})`
+  return `リクエストに失敗しました（${res.status}）。再試行してください。`
 }
 
 /** fetch を実行し、通信断と HTTP エラーを ApiError に正規化する */
 async function fetchJson(url, options) {
-  let res
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 20000)
   try {
-    res = await fetch(url, options)
+    const res = await fetch(url, { ...options, signal: controller.signal })
+    const data = await res.json().catch((error) => {
+      if (controller.signal.aborted) throw error
+      return null
+    })
+
+    if (!res.ok) {
+      throw new ApiError(errorMessage(data || {}, res), res.status)
+    }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      throw new ApiError('サーバーから正しいデータを取得できませんでした。再試行してください。', res.status)
+    }
+    return data
   } catch (e) {
-    // サーバー停止 / DNS 不達 / オフライン (TypeError: Failed to fetch)
+    if (e instanceof ApiError) throw e
+    if (controller.signal.aborted) {
+      throw new ApiError('通信に時間がかかっています。接続を確認して再試行してください。', 0)
+    }
     throw new ApiError(OFFLINE_MESSAGE, 0)
+  } finally {
+    clearTimeout(timer)
   }
-
-  const data = await res.json().catch(() => ({}))
-
-  if (!res.ok) {
-    throw new ApiError(errorMessage(data, res), res.status)
-  }
-
-  return data
 }
 
 async function request(path, options = {}) {

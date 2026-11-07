@@ -37,6 +37,26 @@ CREATE TABLE IF NOT EXISTS users (
   COLLATE = utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------
+-- ディスク (コミュニティ)
+-- 1 ディスク = 1 枚のフロッピー。同じ趣味の書き込みを 1 枚に集める。
+-- slug は URL (/d/:slug) に使う半角英数字とハイフン。
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS disks (
+  id          INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  slug        VARCHAR(32)   NOT NULL,
+  name        VARCHAR(64)   NOT NULL,
+  description VARCHAR(300)  NOT NULL DEFAULT '',
+  owner_id    INT UNSIGNED  NOT NULL,
+  created_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_disks_slug (slug),
+  KEY idx_disks_owner (owner_id),
+  CONSTRAINT fk_disks_owner FOREIGN KEY (owner_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------
 -- API トークン (Bearer 認証)
 -- トークンは SHA-256 ハッシュとして保存する (平文は保存しない)。
 -- Cookie を使わないため、同一オリジン / クロスオリジンの両方で動く。
@@ -70,6 +90,8 @@ CREATE TABLE IF NOT EXISTS posts (
   -- 返信先スレッドのルート投稿 ID。NULL は通常投稿。
   -- 返信への返信も同じスレッド（ルート）にまとめる（フラットなスレッド）。
   reply_to_id  INT UNSIGNED     NULL DEFAULT NULL,
+  -- 書き込み先のディスク (コミュニティ)。NULL はホーム。
+  disk_id      INT UNSIGNED     NULL DEFAULT NULL,
   -- 1 投稿あたり最大 1.44MB を保存できるよう MEDIUMTEXT (最大 16MB) を使う
   text         MEDIUMTEXT       NOT NULL,
   -- ドット絵 (最大 64×64 まで拡張できるよう VARCHAR(4096))
@@ -98,7 +120,9 @@ CREATE TABLE IF NOT EXISTS posts (
   KEY idx_posts_user    (user_id),
   KEY idx_posts_created (created_at),
   KEY idx_posts_reply   (reply_to_id),
-  CONSTRAINT fk_posts_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+  KEY idx_posts_disk    (disk_id),
+  CONSTRAINT fk_posts_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+  CONSTRAINT fk_posts_disk FOREIGN KEY (disk_id) REFERENCES disks (id) ON DELETE SET NULL
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci;
@@ -138,6 +162,22 @@ CREATE TABLE IF NOT EXISTS follows (
   COLLATE = utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------
+-- ディスクの参加メンバー
+-- 1 ユーザー 1 ディスクにつき 1 件。ディスク / ユーザーが消えれば連動して消える。
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS disk_members (
+  disk_id    INT UNSIGNED NOT NULL,
+  user_id    INT UNSIGNED NOT NULL,
+  created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (disk_id, user_id),
+  KEY idx_disk_members_user (user_id),
+  CONSTRAINT fk_disk_members_disk FOREIGN KEY (disk_id) REFERENCES disks (id) ON DELETE CASCADE,
+  CONSTRAINT fk_disk_members_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------
 -- デモユーザー (username: floppy / password: floppy)
 -- ------------------------------------------------------------
 INSERT IGNORE INTO users (id, username, display_name, bio, password_hash) VALUES (
@@ -147,3 +187,14 @@ INSERT IGNORE INTO users (id, username, display_name, bio, password_hash) VALUES
   '1.44MB しか使えない静寂のレトロ SNS。1 投稿＝フロッピー 1 枚。',
   '$2y$12$ut11TeVexp6K4F55U5l8suZ4KGWMWkTTs99vMq32FIYo7W9gwP4mC'
 );
+
+-- ------------------------------------------------------------
+-- デモディスク (コミュニティ)
+-- ------------------------------------------------------------
+INSERT IGNORE INTO disks (slug, name, description, owner_id) VALUES
+  ('retro-pc', 'レトロPC', '9801、X68000、MSX。実機もエミュレータも歓迎の Old Computer 板。', 1),
+  ('pixel-art', 'ドット絵', '16×16 から 32×32 まで。描いたドット絵と制作メモを 1 枚に。', 1),
+  ('8bit-music', '8bit音楽', 'チップチューン、MIDI、PC-98 音源。書き出した曲をフロッピーに添えて。', 1);
+
+INSERT IGNORE INTO disk_members (disk_id, user_id)
+SELECT id, 1 FROM disks WHERE owner_id = 1;
