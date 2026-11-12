@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import random
 from datetime import datetime
 from typing import Any
@@ -222,12 +223,12 @@ def merge_repost_items(
 #
 # デフォルト TL 専用の並べ替え。フォロー中・検索・ディスク・プロフィールは
 # これまで通り時系列 (掲示板式) のまま。
-# 方針: 新しさ × 反応 (いいね/返信) でスコア付けし、人間と bot を不規則に
-# 混ぜる (上限: bot が人間を超えない)。人間がいる限り半分以上は人間になる。
+# 方針: 新しさ (recency) 重視 × 反応 (いいね/返信) でスコア付け。
+# 直近の投稿（特に数時間以内）を強く優先し、過去の投稿は自然に減衰させる。
 # ---------------------------------------------------------------------------
 
-RECOMMENDED_BOT_FACTOR = 0.22  # bot 投稿のスコア倍率
-RECOMMENDED_HALF_LIFE_HOURS = 18.0  # 新しさの半減期
+RECOMMENDED_BOT_FACTOR = 0.28  # bot 投稿のスコア倍率
+RECOMMENDED_HALF_LIFE_HOURS = 3.0  # 新しさの半減期 (短縮して新着優先)
 
 
 def _created_at(value: Any) -> datetime | None:
@@ -250,16 +251,24 @@ def recommended_score(post: dict[str, Any], now: datetime | None = None) -> floa
     else:
         age_hours = max(0.0, (now - created).total_seconds() / 3600.0)
         recency = 0.5 ** (age_hours / RECOMMENDED_HALF_LIFE_HOURS)
-    engagement = 1.0 + 2.0 * int(post.get("like_count") or 0) + 3.0 * int(
-        post.get("reply_count") or 0
-    )
-    # 古くても反応のある投稿が少し浮くよう、減衰には下限を付ける
-    score = engagement * (0.35 + 0.65 * recency)
+        # 投稿直後の新着ブースト
+        if age_hours < 0.5:
+            recency *= 1.35
+        elif age_hours < 1.0:
+            recency *= 1.20
+        elif age_hours < 3.0:
+            recency *= 1.08
+
+    likes = int(post.get("like_count") or 0)
+    replies = int(post.get("reply_count") or 0)
+    # 反応によるブーストは対数スケールに緩和し、新着投稿が埋もれないようにする
+    engagement = 1.0 + 0.6 * math.log1p(likes * 1.5 + replies * 2.0)
+
+    score = recency * engagement
     if post.get("is_bot"):
         score *= RECOMMENDED_BOT_FACTOR
-    # 読み込むたびに少し並びが変わるよう、弱いランダム要素を混ぜる
-    # (bot の割引が jitter の最大幅でも逆転しない範囲に収めている)
-    score *= random.uniform(0.85, 1.18)
+    # 読み込むたびにわずかに並びが変わるよう、微小なジッターを混ぜる
+    score *= random.uniform(0.96, 1.04)
     return score
 
 
@@ -268,10 +277,10 @@ def rank_recommended(
 ) -> list[dict[str, Any]]:
     """おすすめ順に並べ替える。like_count / reply_count / is_bot が付いた投稿用。
 
-    人間と bot を別々にスコア順に並べ、不規則に混ぜる。ただし「その時点までの
-    bot 数が人間数を超えない」という上限だけは守るので、人間の投稿がある限り
-    タイムラインの半分以上は人間になる (間隔はランダムで、規則的な交互には
-    ならない)。人間が尽きたら残りの bot を、bot が尽きたら残りの人間を続ける。
+    新着度とエンゲージメントに基づきスコア順で並べる。
+    ボットが2回以上連続した場合、十分最近の人間の投稿（score > 0.05）があれば
+    クッションとして優先的に挟む。ただし何日も前の古い人間投稿を無理に
+    引っ張り出してボットの前に割り込ませることはしない。
     """
     now = now or datetime.now()
     scored = sorted(
@@ -283,20 +292,30 @@ def rank_recommended(
     bots = [p for p in scored if p.get("is_bot")]
 
     result: list[dict[str, Any]] = []
-    hi = bi = 0  # 取り出した人間 / bot の数
-    while hi < len(humans) and bi < len(bots):
-        deficit = hi - bi  # bot が人間より遅れている数 (0 のときは bot 不可)
-        if deficit <= 0:
-            pick_bot = False
+    consecutive_bots = 0
+
+    while humans or bots:
+        if not humans:
+            result.extend(bots)
+            break
+        if not bots:
+            result.extend(humans)
+            break
+
+        h = humans[0]
+        b = bots[0]
+        h_score = recommended_score(h, now)
+        b_score = recommended_score(b, now)
+
+        if h_score >= b_score:
+            result.append(humans.pop(0))
+            consecutive_bots = 0
+        elif consecutive_bots >= 2 and h_score > 0.05:
+            # ボットが連続し、かつ直近の人間の投稿があれば挟む
+            result.append(humans.pop(0))
+            consecutive_bots = 0
         else:
-            # 遅れが大きいほど bot を挟む確率を上げる (最大 0.8)
-            pick_bot = random.random() < min(0.35 + 0.15 * deficit, 0.8)
-        if pick_bot:
-            result.append(bots[bi])
-            bi += 1
-        else:
-            result.append(humans[hi])
-            hi += 1
-    result.extend(humans[hi:])
-    result.extend(bots[bi:])
+            result.append(bots.pop(0))
+            consecutive_bots += 1
+
     return result
