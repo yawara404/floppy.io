@@ -37,6 +37,12 @@ TOOLS_DIR = BASE_DIR / "tools"
 STATE_FILE = TOOLS_DIR / "bot_state.json"
 CONFIG_FILE = TOOLS_DIR / "bot_config.json"
 
+sys.path.insert(0, str(TOOLS_DIR))
+try:
+    from markov import MarkovModel, generate_acceptable, load_corpus
+except ImportError:
+    MarkovModel = None
+
 # .env から設定読み込み
 ENV_FILE = BACKEND_DIR / ".env"
 if ENV_FILE.exists():
@@ -228,6 +234,66 @@ def generate_nyanpuppu_pixel() -> str:
             put(x, y, "3")
 
     return "".join("".join(row) for row in c)
+
+
+# ---------------------------------------------------------------------------
+# マルコフ連鎖 & コーパス連携 (にゃんぷっぷー方式 + ボカロネタ)
+# ---------------------------------------------------------------------------
+_markov_model: Any = None
+
+
+def get_markov_model() -> Any:
+    global _markov_model
+    if _markov_model is not None:
+        return _markov_model
+    if MarkovModel is None:
+        return None
+
+    corpus_paths = [
+        str(TOOLS_DIR / "corpus" / "news4vip.jsonl"),
+        str(TOOLS_DIR / "corpus" / "news4vip_top.jsonl"),
+        str(TOOLS_DIR / "corpus" / "vocalo.jsonl"),
+    ]
+    existing = [p for p in corpus_paths if os.path.exists(p)]
+    if not existing:
+        return None
+
+    try:
+        texts = load_corpus(existing)
+        m = MarkovModel(order=2)
+        m.train(texts)
+        _markov_model = m
+        logger.info(f"Initialized Markov model with {len(texts)} corpus lines.")
+        return _markov_model
+    except Exception as e:
+        logger.warning(f"Failed to initialize Markov model: {e}")
+        return None
+
+
+def sample_markov(seed: str | None = None) -> str:
+    """マルコフ連鎖で文章を1件生成"""
+    m = get_markov_model()
+    if not m:
+        return ""
+    try:
+        return generate_acceptable(m, seed=seed) or ""
+    except Exception:
+        return ""
+
+
+def sample_vocalo_phrase() -> str:
+    """古のボカロ名曲・ネタコーパスからランダムに1件取得"""
+    vocalo_file = TOOLS_DIR / "corpus" / "vocalo.jsonl"
+    if not vocalo_file.exists():
+        return ""
+    try:
+        lines = [line.strip() for line in vocalo_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+        if lines:
+            item = json.loads(random.choice(lines))
+            return item.get("text", "")
+    except Exception:
+        pass
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -561,23 +627,68 @@ def post_message(bot_key: str, text: str, reply_to_id: int | None = None) -> dic
 
 
 def generate_reply(bot_key: str, post_text: str, author_name: str) -> str:
-    """指定ボットで返信テキストを生成"""
+    """指定ボットで返信テキストを生成 (マルコフ連鎖 & ボカロネタを融合)"""
     profile = BOT_PROFILES.get(bot_key)
     if not profile:
         return ""
 
+    # 純粋マルコフボット (にゃんぷっぷー等)
     if profile.get("generator") == "markov":
         text = generate_markov_reply(post_text)
         if text:
             return text
-        # マルコフが使えないときは Ollama の予備口調に落とす
 
+    # マルコフ連鎖 & ボカロネタからインスピレーション断片を取得
+    markov_hint = generate_markov_reply(post_text) or generate_markov()
+    vocalo_hint = sample_vocalo_phrase()
+
+    if bot_key == "heisei_vipper":
+        # 平成VIPPER: VIPコーパス + 古のボカロネタを織り交ぜる
+        hint_parts = []
+        if markov_hint:
+            hint_parts.append(f"参考VIPスラング/フレーズ: 「{markov_hint}」")
+        if vocalo_hint:
+            hint_parts.append(f"参考ボカロネタ: 「{vocalo_hint}」")
+        hints_str = "\n".join(hint_parts)
+
+        user_input = (
+            f"投稿者: {author_name}\n"
+            f"投稿本文: 「{post_text}」\n"
+            f"{hints_str}\n"
+            "上記の投稿に対して、平成の2ちゃんねるVIP板の住人として返信してください。\n"
+            "参考フレーズや古のボカロネタ（メルト、みくみく、炉心融解、消失、ロードローラー、ぽっぴっぽー等）のエッセンスを適宜取り入れながら、"
+            "ユーモアやツッコミ、(ﾟ∀ﾟ) や (´・ω・`) などの顔文字を交えて1〜2行（20〜60文字程度）で短くレスをつけてください。"
+        )
+        reply = ask_ollama(profile["system_prompt"], user_input)
+        if reply:
+            return reply
+        # Ollamaが万一失敗した時のマルコフフォールバック
+        return f"{markov_hint} だお (ﾟ∀ﾟ)" if markov_hint else "うはｗｗｗおｋｗｗｗ"
+
+    elif bot_key == "hagumeta":
+        # はぐメタ: 足立レイ風の無機質合成音声 + マルコフ推論断片を取り入れた知的ネタbot
+        user_input = (
+            f"投稿者: {author_name}\n"
+            f"投稿本文: 「{post_text}」\n"
+            f"マルコフ思考推論断片: 「{markov_hint}」\n"
+            f"ボカロ/機械音源メタ: 「{vocalo_hint}」\n"
+            "上記の投稿を、感情を持たない合成音声ロボット「はぐメタ」として論理的・機械的に分析してください。\n"
+            "思考推論断片やボカロ・機械音声メタの単語をシュールに取り入れながら、"
+            "「〜です」「〜ます」「〜を検知」「了解」「異常なし」「逃走」などを用いて、"
+            "少し賢く、かつシュールで無機質なネタ返信を1〜2行（20〜60文字程度）で短く生成してください。"
+        )
+        reply = ask_ollama(profile["system_prompt"], user_input)
+        if reply:
+            return reply
+        return f"解析完了。推論結果：{markov_hint}。異常なし。" if markov_hint else "了解。異常なし。逃走。"
+
+    # その他のボット
     user_input = f"投稿者: {author_name}\n投稿本文: 「{post_text}」\n上記に対する返信を生成してください。"
     return ask_ollama(profile["system_prompt"], user_input)
 
 
 def generate_soliloquy(bot_key: str) -> str:
-    """指定ボットで独り言テキストを生成"""
+    """指定ボットで独り言テキストを生成 (マルコフ連鎖 & ボカロネタを融合)"""
     profile = BOT_PROFILES.get(bot_key)
     if not profile:
         return ""
@@ -586,7 +697,61 @@ def generate_soliloquy(bot_key: str) -> str:
         text = generate_markov()
         if text:
             return text
-        # マルコフが使えないときは Ollama の予備口調に落とす
+
+    markov_hint = generate_markov()
+    vocalo_hint = sample_vocalo_phrase()
+
+    if bot_key == "heisei_vipper":
+        # 30%の確率で純粋マルコフ文をVIP風に装飾して投稿（にゃんぷっぷー方式）
+        if random.random() < 0.35 and markov_hint:
+            decorations = [
+                f"【速報】{markov_hint} だお ( ﾟдﾟ )",
+                f"{markov_hint} ｗｗｗうはｗｗｗ",
+                f"【悲報】{markov_hint} (´・ω・`)",
+                f"キタコレ！ {markov_hint} (ﾟ∀ﾟ)",
+                f"{markov_hint} な奴ちょっとこい",
+            ]
+            return random.choice(decorations)
+
+        # 65%は Ollama + マルコフ + ボカロネタで多彩なスレ立て風投稿
+        hint_parts = []
+        if markov_hint:
+            hint_parts.append(f"VIPマルコフ断片: 「{markov_hint}」")
+        if vocalo_hint:
+            hint_parts.append(f"ボカロネタ: 「{vocalo_hint}」")
+        hints_str = "\n".join(hint_parts)
+
+        user_input = (
+            f"{hints_str}\n"
+            "上記の断片や古のボカロネタ（メルト、みくみく、炉心融解、悪ノ召使、消失など）をインスピレーションにして、"
+            "平成2ちゃんねるVIP板の住人らしいスレ立て風の独り言やネタ投稿を1行（40文字程度）で短く投稿してください。"
+            "「【速報】」「〜な奴ちょっとこい」「〜だお」や顔文字 (ﾟ∀ﾟ) を自然に交えてください。"
+        )
+        reply = ask_ollama(profile["soliloquy_prompt"], user_input)
+        return reply or (f"【速報】{markov_hint} (ﾟ∀ﾟ)" if markov_hint else "ぬるぽ")
+
+    elif bot_key == "hagumeta":
+        # 30%の確率でマルコフ断片を足立レイ風フォーマットに当てはめて直接出力
+        if random.random() < 0.35 and markov_hint:
+            formats = [
+                f"セクタ観測ログ：『{markov_hint}』。全セクタ正常。",
+                f"思考サイクル完了。推論値：『{markov_hint}』。逃走準備完了。",
+                f"磁気面より断片を検出。『{markov_hint}』。異常なし。",
+                f"メタルボディの融点確認。『{markov_hint}』を感知。",
+            ]
+            return random.choice(formats)
+
+        # 65%は Ollama + マルコフ + ボカロ（機械音声・消失・暴走メタ）
+        user_input = (
+            f"マルコフ思考断片: 「{markov_hint}」\n"
+            f"ボカロ・機械音声メタ: 「{vocalo_hint}」\n"
+            "上記の断片やボカロの機械音声メタを取り入れながら、"
+            "感情を持たない足立レイ風の合成音声ロボット「はぐメタ」として、"
+            "少し知的でシュールな定期観測報告、フロッピー点検報告、あるいは逃走報告を1行（35文字程度）で短く投稿してください。"
+            "「〜です」「〜ます」「〜を検知」「異常なし」などを用いてください。"
+        )
+        reply = ask_ollama(profile["soliloquy_prompt"], user_input)
+        return reply or (f"定期観測報告：{markov_hint}。異常なし。" if markov_hint else "セクタ点検完了。逃走。")
 
     user_input = "タイムラインに短く1投稿してください。"
     return ask_ollama(profile["soliloquy_prompt"], user_input)
