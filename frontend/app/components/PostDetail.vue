@@ -16,7 +16,7 @@ const props = defineProps({
   canDelete: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['like', 'share', 'reply', 'delete'])
+const emit = defineEmits(['like', 'share', 'reply', 'delete', 'repost'])
 
 const { canvas: avatarCanvas, draw: drawAvatar } = useAvatarCanvas(
   () => props.post,
@@ -33,6 +33,7 @@ const hasPixel = computed(() => hasPixelArt(props.post))
 const totalBytes = computed(() => Number(props.post.total_bytes) || 0)
 const likeCount = computed(() => Number(props.post.like_count) || 0)
 const replyCount = computed(() => Number(props.post.reply_count) || 0)
+const repostCount = computed(() => Number(props.post.repost_count) || 0)
 
 const postKind = computed(() => postKindOf(props.post))
 
@@ -192,6 +193,18 @@ watch(
       >
         <span aria-hidden="true">{{ post.liked ? '♥' : '♡' }}</span>
         いいね <b>{{ likeCount }}</b>
+      </button>
+
+      <button
+        type="button"
+        class="detail-action detail-repost"
+        :class="{ active: post.reposted }"
+        :aria-pressed="post.reposted ? 'true' : 'false'"
+        :title="post.reposted ? 'リポストを取り消す' : 'リポスト'"
+        @click="emit('repost', post)"
+      >
+        <span aria-hidden="true">↻</span>
+        リポスト <b>{{ repostCount }}</b>
       </button>
 
       <button

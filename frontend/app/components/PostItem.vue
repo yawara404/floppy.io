@@ -14,7 +14,7 @@ const props = defineProps({
   canDelete: { type: Boolean, default: false },
 })
 
-defineEmits(['delete', 'share', 'like'])
+defineEmits(['delete', 'share', 'like', 'repost'])
 
 const router = useRouter()
 const { canvas, draw: drawAvatar } = useAvatarCanvas(() => props.post)
@@ -125,6 +125,14 @@ watch(
     </div>
 
     <div class="post-body">
+      <div v-if="post.is_repost" class="repost-banner">
+        <span aria-hidden="true">↻</span>
+        <NuxtLink class="repost-by" :to="'/u/' + post.reposted_by_username">
+          {{ post.reposted_by_name || post.reposted_by_username }}
+        </NuxtLink>
+        さんがリポスト
+      </div>
+
       <div class="post-head">
         <NuxtLink class="post-user" :to="'/u/' + post.username">
           {{ post.display_name || post.username }}
@@ -292,6 +300,19 @@ watch(
           <span class="like-count">{{ String(post.like_count || 0).padStart(2, '0') }}</span>
         </button>
         <button
+          v-if="!post.reply_to_id"
+          type="button"
+          class="link-btn action-btn repost-btn"
+          :class="{ reposted: post.reposted }"
+          :title="post.reposted ? 'リポストを取り消す' : 'リポスト'"
+          :aria-label="post.reposted ? 'リポストを取り消す' : 'リポスト'"
+          :aria-pressed="post.reposted ? 'true' : 'false'"
+          @click="$emit('repost', post)"
+        >
+          <span aria-hidden="true">↻</span> リポスト
+          <span class="repost-count">{{ String(post.repost_count || 0).padStart(2, '0') }}</span>
+        </button>
+        <button
           type="button"
           class="link-btn action-btn"
           aria-label="投稿を共有"
@@ -311,3 +332,22 @@ watch(
     </div>
   </article>
 </template>
+
+<style scoped>
+.repost-banner {
+  font-size: 12px;
+  color: #4a7a5b;
+  margin-bottom: 4px;
+}
+
+.repost-banner .repost-by {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.repost-btn.reposted {
+  color: #178a4c;
+  font-weight: 700;
+}
+</style>

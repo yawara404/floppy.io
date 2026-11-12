@@ -15,7 +15,15 @@ from fastapi import APIRouter, HTTPException, Request, status
 from ..config import DISK_LIMIT_BYTES
 from ..db import execute, fetch_all, fetch_one
 from ..disks import attach_disks
-from ..posts import POST_COLUMNS, attach_likes, attach_reply_counts, with_media
+from ..posts import (
+    POST_COLUMNS,
+    attach_likes,
+    attach_reply_counts,
+    attach_reposts,
+    merge_repost_items,
+    rank_recommended,
+    with_media,
+)
 from ..security import current_user, require_user
 from ..utils.images import validate_image_data
 from ..utils.pixels import (
@@ -120,6 +128,74 @@ def media_card_html(image_html: str, caption: str = "") -> str:
     )
 
 
+def fetch_repost_items(
+    me: dict | None,
+    feed: str = "",
+    bot_filter: str = "",
+    reposter_id: int | None = None,
+) -> list[dict]:
+    """リポスト表示 (元投稿 + 「○○さんがリポスト」) の一覧を作る。
+
+    mixi 方式: リポストはフォローの流れと時系列 TL にだけ現れ、
+    おすすめ (recommended) のスコアには影響しない。
+    bot フィルターは元投稿の投稿者に対して効く。
+    """
+    where: list[str] = ["p.reply_to_id IS NULL"]
+    params: list[object] = []
+
+    bot_names = ("hagumeta", "heisei_vipper", "adachi_rei", "nyanpuppu3", "nyanpuppu")
+    if bot_filter in ("0", "false", "off", "no"):
+        placeholders = ",".join(["%s"] * len(bot_names))
+        where.append(
+            f"(u.username NOT IN ({placeholders}) AND u.username NOT LIKE 'nyanpuppu%%')"
+        )
+        params.extend(bot_names)
+    elif bot_filter == "only":
+        placeholders = ",".join(["%s"] * len(bot_names))
+        where.append(
+            f"(u.username IN ({placeholders}) OR u.username LIKE 'nyanpuppu%%')"
+        )
+        params.extend(bot_names)
+
+    if reposter_id is not None:
+        where.append("r.user_id = %s")
+        params.append(int(reposter_id))
+    elif feed == "following":
+        if me is None:
+            return []
+        where.append(
+            "(r.user_id = %s OR r.user_id IN "
+            "(SELECT followee_id FROM follows WHERE follower_id = %s))"
+        )
+        params.extend([int(me["id"]), int(me["id"])])
+
+    sql = f"""SELECT r.user_id AS repost_user_id,
+              r.created_at AS reposted_at,
+              ru.username AS reposted_by_username,
+              ru.display_name AS reposted_by_name,
+              {POST_COLUMNS}
+            FROM reposts r
+            JOIN posts p ON p.id = r.post_id
+            JOIN users u ON u.id = p.user_id
+            JOIN users ru ON ru.id = r.user_id
+           WHERE {" AND ".join(where)}
+           ORDER BY r.created_at DESC, r.post_id DESC
+           LIMIT 200"""
+
+    items: list[dict] = []
+    for row in fetch_all(sql, tuple(params)):
+        item = with_media(row) or {}
+        item["is_repost"] = True
+        # reposts に単独 id は無いので (投稿ID × リポストした人) で一意にする
+        item["timeline_key"] = f"repost-{int(row['id'])}-{int(row['repost_user_id'])}"
+        item["timeline_at"] = row.get("reposted_at")
+        items.append(item)
+
+    return attach_reposts(
+        attach_disks(attach_reply_counts(attach_likes(items, me))), me
+    )
+
+
 @router.get("/posts")
 def list_posts(
     request: Request,
@@ -180,17 +256,40 @@ def list_posts(
         where.append("(p.text LIKE %s OR u.username LIKE %s OR u.display_name LIKE %s)")
         params.extend([like, like, like])
 
+    # おすすめはデフォルト TL 専用 (検索・ディスク・ユーザー指定時は時系列のまま)
+    # bot フィルター (人間のみ / Botのみ) を使っているときも時系列に固定する
+    recommended = (
+        feed.strip().lower() == "recommended"
+        and not username
+        and not disk_slug
+        and not keyword
+        and not bot_filter
+    )
+
     if where:
         sql += " WHERE " + " AND ".join(where)
 
-    sql += " ORDER BY p.created_at DESC, p.id DESC LIMIT 200"
+    # おすすめは候補を多めに取ってからスコア順に並べ替える
+    sql += " ORDER BY p.created_at DESC, p.id DESC LIMIT " + ("300" if recommended else "200")
 
     rows = fetch_all(sql, tuple(params))
-    posts = attach_disks(
-        attach_reply_counts(
-            attach_likes([with_media(row) for row in rows], current_user(request))
-        )
+    me = current_user(request)
+    posts = attach_reposts(
+        attach_disks(
+            attach_reply_counts(
+                attach_likes([with_media(row) for row in rows], me)
+            )
+        ),
+        me,
     )
+    if recommended:
+        # mixi 方式: リポストはおすすめのスコアに影響しない (拡散は時系列側だけ)
+        posts = rank_recommended(posts)[:200]
+    elif not username and not keyword and not disk_slug:
+        # 時系列 TL (全体 / フォロー中) にはリポスト表示を時刻順に混ぜる
+        items = fetch_repost_items(me=me, feed=feed, bot_filter=bot_filter)
+        if items:
+            posts = merge_repost_items(posts, items)
     return {"posts": posts}
 
 
@@ -487,13 +586,17 @@ def thread(request: Request, id: int = 0) -> dict:
     )
 
     me = current_user(request)
-    post = attach_disks(
-        attach_reply_counts(attach_likes([with_media(row)], me))
+    post = attach_reposts(
+        attach_disks(attach_reply_counts(attach_likes([with_media(row)], me))),
+        me,
     )[0]
-    reply_list = attach_disks(
-        attach_reply_counts(
-            attach_likes([with_media(reply) for reply in replies], me)
-        )
+    reply_list = attach_reposts(
+        attach_disks(
+            attach_reply_counts(
+                attach_likes([with_media(reply) for reply in replies], me)
+            )
+        ),
+        me,
     )
 
     return {"post": post, "replies": reply_list}

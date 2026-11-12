@@ -19,6 +19,7 @@ const emit = defineEmits(['changed', 'like-changed'])
 const error = ref('')
 const sharePost = ref(null)
 const liking = new Set()
+const reposting = new Set()
 let lastFocused = null
 
 function openShare(post) {
@@ -67,6 +68,27 @@ async function toggleLike(post) {
   }
 }
 
+async function toggleRepost(post) {
+  if (reposting.has(post.id)) return
+  error.value = ''
+
+  if (!isLoggedIn.value) {
+    error.value = 'リポストするにはログインが必要です。'
+    return
+  }
+
+  reposting.add(post.id)
+  try {
+    const data = await apiPost('/repost', { id: post.id })
+    post.reposted = data.reposted
+    post.repost_count = data.repost_count
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    reposting.delete(post.id)
+  }
+}
+
 function canDelete(post) {
   return isLoggedIn.value && currentUser.value?.id === post.user_id
 }
@@ -101,11 +123,12 @@ function canDelete(post) {
       <div class="timeline">
         <PostItem
           v-for="post in props.posts"
-          :key="post.id"
+          :key="post.timeline_key || post.id"
           :post="post"
           :can-delete="canDelete(post)"
           @delete="removePost"
           @like="toggleLike"
+          @repost="toggleRepost"
           @share="openShare"
         />
       </div>

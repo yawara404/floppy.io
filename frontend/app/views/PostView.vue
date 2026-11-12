@@ -76,6 +76,24 @@ async function toggleLike(target) {
   }
 }
 
+async function toggleRepost(target) {
+  if (!target) return
+  actionError.value = ''
+
+  if (!isLoggedIn.value) {
+    actionError.value = 'リポストするにはログインが必要です。'
+    return
+  }
+
+  try {
+    const data = await apiPost('/repost', { id: target.id })
+    target.reposted = data.reposted
+    target.repost_count = data.repost_count
+  } catch (e) {
+    actionError.value = e.message
+  }
+}
+
 function openShare() {
   shareOpen.value = true
 }
@@ -148,6 +166,7 @@ watch(() => props.id, load)
         :post="post"
         :can-delete="canDeleteMain"
         @like="toggleLike"
+        @repost="toggleRepost"
         @share="openShare"
         @reply="focusReply"
         @delete="deletePost"

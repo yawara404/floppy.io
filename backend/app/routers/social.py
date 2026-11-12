@@ -1,11 +1,11 @@
-"""floppy.io — いいね / フォロー API"""
+"""floppy.io — いいね / リポスト / フォロー API"""
 
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
 
 from ..db import execute, fetch_one
-from ..posts import like_count
+from ..posts import like_count, repost_count
 from ..schemas import FollowIn, IdIn
 from ..security import follow_stats, is_following, require_user
 
@@ -42,6 +42,48 @@ def toggle_like(request: Request, payload: IdIn) -> dict:
         liked = True
 
     return {"liked": liked, "like_count": like_count(post_id)}
+
+
+@router.post("/repost")
+def toggle_repost(request: Request, payload: IdIn) -> dict:
+    """mixi 方式のリポスト: 元投稿を自分のフォロワーへ再共有する (トグル)。
+
+    投稿そのものは複製しない。reposts に 1 行できるだけで、容量 (1.44MB) は
+    消費しない。おすすめ TL のスコアには影響しない (拡散はフォローの範囲だけ)。
+    """
+    user = require_user(request)
+    post_id = int(payload.id or 0)
+
+    if post_id <= 0:
+        raise HTTPException(400, "投稿 ID が不正です。")
+
+    post = fetch_one(
+        "SELECT id, reply_to_id FROM posts WHERE id = %s", (post_id,)
+    )
+    if not post:
+        raise HTTPException(404, "投稿が見つかりません。")
+    if post.get("reply_to_id"):
+        raise HTTPException(400, "返信はリポストできません。")
+
+    existing = fetch_one(
+        "SELECT 1 AS found FROM reposts WHERE post_id = %s AND user_id = %s",
+        (post_id, int(user["id"])),
+    )
+
+    if existing:
+        execute(
+            "DELETE FROM reposts WHERE post_id = %s AND user_id = %s",
+            (post_id, int(user["id"])),
+        )
+        reposted = False
+    else:
+        execute(
+            "INSERT INTO reposts (post_id, user_id) VALUES (%s, %s)",
+            (post_id, int(user["id"])),
+        )
+        reposted = True
+
+    return {"reposted": reposted, "repost_count": repost_count(post_id)}
 
 
 @router.post("/follow")

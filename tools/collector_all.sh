@@ -30,3 +30,4 @@ echo ""
 echo "=== コーパス統計 ==="
 wc -l "$SCRIPT_DIR"/corpus/*.jsonl
 echo "コーパス更新完了！"
+

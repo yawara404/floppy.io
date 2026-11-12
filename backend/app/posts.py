@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import random
+from datetime import datetime
 from typing import Any
 
 from .db import fetch_all, fetch_one
@@ -149,3 +151,152 @@ def like_count(post_id: int) -> int:
         "SELECT COUNT(*) AS c FROM likes WHERE post_id = %s", (post_id,)
     )
     return int(row["c"]) if row else 0
+
+
+def attach_reposts(
+    posts: list[dict[str, Any]], user: dict[str, Any] | None = None
+) -> list[dict[str, Any]]:
+    """各投稿にリポスト数と「自分がリポスト済みか」を付ける (attach_likes と同型)"""
+    if not posts:
+        return posts
+
+    ids = sorted({int(post["id"]) for post in posts})
+    placeholders = ",".join(["%s"] * len(ids))
+
+    counts = {
+        int(row["post_id"]): int(row["c"])
+        for row in fetch_all(
+            f"""SELECT post_id, COUNT(*) AS c
+                  FROM reposts
+                 WHERE post_id IN ({placeholders})
+                 GROUP BY post_id""",
+            tuple(ids),
+        )
+    }
+
+    mine: set[int] = set()
+    if user:
+        mine = {
+            int(row["post_id"])
+            for row in fetch_all(
+                f"""SELECT post_id FROM reposts
+                     WHERE user_id = %s AND post_id IN ({placeholders})""",
+                (int(user["id"]), *ids),
+            )
+        }
+
+    for post in posts:
+        post_id = int(post["id"])
+        post["repost_count"] = counts.get(post_id, 0)
+        post["reposted"] = post_id in mine
+
+    return posts
+
+
+def repost_count(post_id: int) -> int:
+    row = fetch_one(
+        "SELECT COUNT(*) AS c FROM reposts WHERE post_id = %s", (post_id,)
+    )
+    return int(row["c"]) if row else 0
+
+
+def merge_repost_items(
+    posts: list[dict[str, Any]],
+    repost_items: list[dict[str, Any]],
+    limit: int = 200,
+) -> list[dict[str, Any]]:
+    """時系列 TL 用: 通常投稿とリポスト表示を時刻降順に混ぜる。
+
+    通常投稿は created_at、リポスト表示は timeline_at (リポスト時刻) で並べる。
+    日時は "YYYY-MM-DD HH:MM:SS" 文字列なので辞書順 = 時刻順になる。
+    """
+
+    def at(post: dict[str, Any]) -> str:
+        return str(post.get("timeline_at") or post.get("created_at") or "")
+
+    return sorted([*posts, *repost_items], key=at, reverse=True)[:limit]
+
+
+# ---------------------------------------------------------------------------
+# おすすめタイムライン (feed=recommended)
+#
+# デフォルト TL 専用の並べ替え。フォロー中・検索・ディスク・プロフィールは
+# これまで通り時系列 (掲示板式) のまま。
+# 方針: 新しさ × 反応 (いいね/返信) でスコア付けし、人間と bot を不規則に
+# 混ぜる (上限: bot が人間を超えない)。人間がいる限り半分以上は人間になる。
+# ---------------------------------------------------------------------------
+
+RECOMMENDED_BOT_FACTOR = 0.22  # bot 投稿のスコア倍率
+RECOMMENDED_HALF_LIFE_HOURS = 18.0  # 新しさの半減期
+
+
+def _created_at(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
+            try:
+                return datetime.strptime(value[:19], fmt)
+            except ValueError:
+                continue
+    return None
+
+
+def recommended_score(post: dict[str, Any], now: datetime | None = None) -> float:
+    now = now or datetime.now()
+    created = _created_at(post.get("created_at"))
+    if created is None:
+        recency = 0.5
+    else:
+        age_hours = max(0.0, (now - created).total_seconds() / 3600.0)
+        recency = 0.5 ** (age_hours / RECOMMENDED_HALF_LIFE_HOURS)
+    engagement = 1.0 + 2.0 * int(post.get("like_count") or 0) + 3.0 * int(
+        post.get("reply_count") or 0
+    )
+    # 古くても反応のある投稿が少し浮くよう、減衰には下限を付ける
+    score = engagement * (0.35 + 0.65 * recency)
+    if post.get("is_bot"):
+        score *= RECOMMENDED_BOT_FACTOR
+    # 読み込むたびに少し並びが変わるよう、弱いランダム要素を混ぜる
+    # (bot の割引が jitter の最大幅でも逆転しない範囲に収めている)
+    score *= random.uniform(0.85, 1.18)
+    return score
+
+
+def rank_recommended(
+    posts: list[dict[str, Any]], now: datetime | None = None
+) -> list[dict[str, Any]]:
+    """おすすめ順に並べ替える。like_count / reply_count / is_bot が付いた投稿用。
+
+    人間と bot を別々にスコア順に並べ、不規則に混ぜる。ただし「その時点までの
+    bot 数が人間数を超えない」という上限だけは守るので、人間の投稿がある限り
+    タイムラインの半分以上は人間になる (間隔はランダムで、規則的な交互には
+    ならない)。人間が尽きたら残りの bot を、bot が尽きたら残りの人間を続ける。
+    """
+    now = now or datetime.now()
+    scored = sorted(
+        posts,
+        key=lambda p: (recommended_score(p, now), int(p.get("id") or 0)),
+        reverse=True,
+    )
+    humans = [p for p in scored if not p.get("is_bot")]
+    bots = [p for p in scored if p.get("is_bot")]
+
+    result: list[dict[str, Any]] = []
+    hi = bi = 0  # 取り出した人間 / bot の数
+    while hi < len(humans) and bi < len(bots):
+        deficit = hi - bi  # bot が人間より遅れている数 (0 のときは bot 不可)
+        if deficit <= 0:
+            pick_bot = False
+        else:
+            # 遅れが大きいほど bot を挟む確率を上げる (最大 0.8)
+            pick_bot = random.random() < min(0.35 + 0.15 * deficit, 0.8)
+        if pick_bot:
+            result.append(bots[bi])
+            bi += 1
+        else:
+            result.append(humans[hi])
+            hi += 1
+    result.extend(humans[hi:])
+    result.extend(bots[bi:])
+    return result

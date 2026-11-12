@@ -34,7 +34,7 @@ DISK_FREE_WARN_BYTES = 100 * 1024 * 1024
 # 認証 (public_user) や一覧取得が参照するテーブル。
 # 旧 PHP 版の DB をそのまま使うと follows が無く、ログイン / 新規登録が
 # 一律 503 になるため、起動時に不足を検知してログに出す。
-REQUIRED_TABLES = ("users", "api_tokens", "posts", "likes", "follows", "disks", "disk_members")
+REQUIRED_TABLES = ("users", "api_tokens", "posts", "likes", "reposts", "follows", "disks", "disk_members")
 
 # MySQL のエラーコード
 ER_NO_SUCH_TABLE = 1146

@@ -310,7 +310,7 @@ onMounted(() => {
         <div class="sidebar-status">
           <div class="status-title">SYSTEM STATUS</div>
           <div class="status-row"><span>DISK</span><b>1.44 MB</b></div>
-          <div class="status-row"><span>FEED</span><b>CHRONO</b></div>
+          <div class="status-row"><span>FEED</span><b>RECOMMENDED</b></div>
           <div class="status-row"><span>NOISE</span><b class="ok">0%</b></div>
         </div>
 

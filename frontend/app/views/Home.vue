@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import Composer from '../components/Composer.vue'
 import PostList from '../components/PostList.vue'
 import { apiGet } from '~/utils/api'
@@ -32,10 +32,45 @@ function setBotFilter(filter) {
   if (typeof window !== 'undefined') {
     localStorage.setItem('floppy_bot_filter', filter)
   }
+  resetVisible()
   load()
 }
 
 const isFollowingFeed = computed(() => props.feed === 'following')
+
+// おすすめ順になるのは「デフォルト TL × bot フィルター: すべて」のときだけ
+const isRecommendedFeed = computed(
+  () => !isFollowingFeed.value && botFilter.value === 'all',
+)
+
+// メイン TL は 50 件ずつ表示する (旧 Twitter 風)。フォロー中は一括表示のまま
+const PAGE_SIZE = 50
+const visibleCount = ref(PAGE_SIZE)
+const displayedPosts = computed(() =>
+  isFollowingFeed.value
+    ? posts.value
+    : posts.value.slice(0, visibleCount.value),
+)
+const hasMorePosts = computed(
+  () => !isFollowingFeed.value && posts.value.length > visibleCount.value,
+)
+
+function showMore() {
+  visibleCount.value += PAGE_SIZE
+}
+
+function resetVisible() {
+  visibleCount.value = PAGE_SIZE
+}
+
+// 下までスクロールしたら次の 50 件を自動で足す (ボタンでも開ける)
+function onScroll() {
+  if (!hasMorePosts.value) return
+  const nearBottom =
+    window.innerHeight + window.scrollY >=
+    document.documentElement.scrollHeight - 800
+  if (nearBottom) showMore()
+}
 
 // 未ログインの全体タイムラインでのみランディング用ヒーローを出す
 // (認証状態の復元前に一瞬表示されないよう authReady を待つ)
@@ -76,6 +111,9 @@ async function load() {
     const params = new URLSearchParams()
     if (isFollowingFeed.value) {
       params.set('feed', 'following')
+    } else if (botFilter.value === 'all') {
+      // デフォルト TL はおすすめ順 (bot 控えめ)。人間のみ/Botのみは時系列のまま
+      params.set('feed', 'recommended')
     }
     if (botFilter.value === 'human') {
       params.set('bot', '0')
@@ -99,7 +137,10 @@ function onPosted(post) {
 }
 
 // タブ（タイムライン / フォロー中）を切り替えたら読み直す
-watch(() => props.feed, load)
+watch(() => props.feed, () => {
+  resetVisible()
+  load()
+})
 
 // 保存済みトークンの確認は非同期なので、ログイン状態が確定してから読み込む
 watch(
@@ -109,7 +150,14 @@ watch(
   },
 )
 
-onMounted(load)
+onMounted(() => {
+  load()
+  window.addEventListener('scroll', onScroll, { passive: true })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', onScroll)
+})
 </script>
 
 <template>
@@ -153,7 +201,7 @@ onMounted(load)
           </div>
           <div>
             <dt>FEED</dt>
-            <dd>CHRONO</dd>
+            <dd>RECOMMENDED</dd>
           </div>
         </dl>
       </div>
@@ -189,7 +237,7 @@ onMounted(load)
 
         <span class="hero-chip chip-a">[READY] DISK 01</span>
         <span class="hero-chip chip-b">32 × 32 DOT</span>
-        <span class="hero-chip chip-c">NO ALGORITHM</span>
+        <span class="hero-chip chip-c">QUIET FEED</span>
       </div>
     </section>
 
@@ -217,12 +265,12 @@ onMounted(load)
 
       <article class="feature-card">
         <span class="feature-index">03 / FEED</span>
-        <h3>アルゴリズムは、ない。</h3>
+        <h3>うるさくない、おすすめ。</h3>
         <p>
-          新しい順に流れるだけ。おすすめも広告もない、
-          静かな距離感のタイムラインです。
+          デフォルトのタイムラインは、bot の投稿を控えめにしたおすすめ順。
+          フォロー中やディスクは、これまで通り新しい順のままです。
         </p>
-        <span class="feature-tag">CHRONOLOGICAL ONLY</span>
+        <span class="feature-tag">RECOMMENDED + CHRONOLOGICAL</span>
       </article>
     </section>
 
@@ -257,7 +305,7 @@ onMounted(load)
       <div class="section-head">
         <div>
           <p class="section-kicker">
-            {{ isFollowingFeed ? 'FOLLOWING / CHRONOLOGICAL' : 'LIVE FEED / CHRONOLOGICAL' }}
+            {{ isFollowingFeed ? 'FOLLOWING / CHRONOLOGICAL' : isRecommendedFeed ? 'HOME / RECOMMENDED' : 'HOME / CHRONOLOGICAL' }}
           </p>
           <h2 class="section-title">
             {{ isFollowingFeed ? 'フォロー中' : 'タイムライン' }}
@@ -309,7 +357,7 @@ onMounted(load)
               @click="setBotFilter('only')"
             >Botのみ</button>
           </div>
-          <span class="timeline-count">NEWEST FIRST</span>
+          <span class="timeline-count">{{ isRecommendedFeed ? 'RECOMMENDED' : 'NEWEST FIRST' }}</span>
         </div>
       </div>
 
@@ -323,11 +371,21 @@ onMounted(load)
 
       <PostList
         v-else
-        :posts="posts"
+        :posts="displayedPosts"
         :loading="loading"
         :empty-text="emptyText"
         @changed="load"
       />
+
+      <button
+        v-if="hasMorePosts"
+        type="button"
+        class="btn"
+        style="display: block; margin: 16px auto 0"
+        @click="showMore"
+      >
+        さらに表示（残り {{ posts.length - visibleCount }} 件）
+      </button>
     </section>
   </div>
 </template>

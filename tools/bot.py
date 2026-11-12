@@ -757,8 +757,16 @@ def generate_soliloquy(bot_key: str) -> str:
     return ask_ollama(profile["soliloquy_prompt"], user_input)
 
 
+# bot の自動返信は無効化中 (2026-11-12 Wawa の指示)。独り言のみ投稿する。
+# 返信を再開するときは True に戻す。
+REPLIES_ENABLED = False
+
+
 def check_and_reply(target_bot: str | None = None, specific_post_id: int | None = None, catchup: bool = False) -> int:
     """新着投稿をチェックして自動返信を行う"""
+    if not REPLIES_ENABLED:
+        return 0
+
     cfg = load_config()
     if not cfg:
         logger.error("Bot accounts not configured. Run `setup` first.")

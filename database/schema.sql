@@ -145,6 +145,26 @@ CREATE TABLE IF NOT EXISTS likes (
   COLLATE = utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------
+-- リポスト (mixi 方式の再共有)
+-- 1 ユーザー 1 投稿につき 1 件。元投稿 / ユーザーが消えれば連動して消える。
+-- 投稿そのものは複製しないので、容量 (1.44MB) は消費しない。
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS reposts (
+  id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  post_id    INT UNSIGNED NOT NULL,
+  user_id    INT UNSIGNED NOT NULL,
+  created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_reposts_post_user (post_id, user_id),
+  KEY idx_reposts_user (user_id),
+  KEY idx_reposts_created (created_at),
+  CONSTRAINT fk_reposts_post FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
+  CONSTRAINT fk_reposts_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------
 -- フォロー
 -- follower_id が followee_id をフォローする (1 組 1 件)。
 -- どちらかのユーザーが消えれば連動して消える。

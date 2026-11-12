@@ -8,7 +8,15 @@ from fastapi.responses import RedirectResponse, Response
 from ..config import DISK_LIMIT_BYTES
 from ..db import execute, fetch_all, fetch_one
 from ..disks import attach_disks
-from ..posts import POST_COLUMNS, attach_likes, attach_reply_counts, with_media
+from ..posts import (
+    POST_COLUMNS,
+    attach_likes,
+    attach_reply_counts,
+    attach_reposts,
+    merge_repost_items,
+    with_media,
+)
+from .posts import fetch_repost_items
 from ..schemas import IconPixelIn, PasswordIn, ProfileIn, ReplySettingIn
 from ..security import (
     USER_COLUMNS,
@@ -55,9 +63,9 @@ def get_private_likes(
         (int(me["id"]), offset),
     )
     return {
-        "posts": attach_disks(attach_reply_counts(attach_likes(
+        "posts": attach_reposts(attach_disks(attach_reply_counts(attach_likes(
             [with_media(post) for post in rows[:50]], me,
-        ))),
+        ))), me),
         "next_offset": offset + 50 if len(rows) > 50 else None,
     }
 
@@ -193,13 +201,22 @@ def get_user(request: Request, username: str = "") -> dict:
         and is_following(int(me["id"]), int(row["id"]))
     )
 
-    return {
-        "user": user,
-        "posts": attach_disks(
+    user_posts = attach_reposts(
+        attach_disks(
             attach_reply_counts(
                 attach_likes([with_media(post) for post in posts], me)
             )
         ),
+        me,
+    )
+    # 本人がリポストした投稿も、プロフィールでは自分の発信として混ぜる
+    repost_items = fetch_repost_items(me=me, reposter_id=int(row["id"]))
+    if repost_items:
+        user_posts = merge_repost_items(user_posts, repost_items)
+
+    return {
+        "user": user,
+        "posts": user_posts,
     }
 
 
