@@ -181,6 +181,55 @@ def generate_mona_pixel() -> str:
     return "".join("".join(row) for row in canvas)
 
 
+def generate_nyanpuppu_pixel() -> str:
+    """にゃんぷっぷーのドット絵アイコン (32x32 / 黄猫・ω口・頬ひげ)"""
+    c = [["0"] * 32 for _ in range(32)]
+
+    def put(x: int, y: int, v: str) -> None:
+        if 0 <= x < 32 and 0 <= y < 32:
+            c[y][x] = v
+
+    # 耳: 高さ6の三角 (パレット 6=黄, 3=黒)
+    for i in range(6):
+        y = 2 + i
+        half = 1 + i
+        for cx in (8, 23):
+            for dx in range(-half, half + 1):
+                put(cx + dx, y, "6")
+            put(cx - half, y, "3")
+            put(cx + half, y, "3")
+
+    # 顔: y8..28, x3..28 の角丸矩形
+    for y in range(8, 29):
+        inset = 1 if y in (8, 28) else 0
+        for x in range(3 + inset, 29 - inset):
+            put(x, y, "6")
+        put(3 + inset, y, "3")
+        put(28 - inset, y, "3")
+    for x in range(4, 28):
+        put(x, 8, "3")
+        put(x, 28, "3")
+
+    # 目: 2x3 の縦長ドット
+    for y in (14, 15, 16):
+        for x in (10, 11, 20, 21):
+            put(x, y, "3")
+
+    # 口: ω (2つの ∪ を共有)
+    for x, y in ((13, 20), (16, 20), (19, 20), (13, 21), (16, 21), (19, 21),
+                 (14, 22), (15, 22), (17, 22), (18, 22)):
+        put(x, y, "3")
+
+    # ひげ: 頬の両側に2本ずつ
+    for y in (18, 21):
+        for x in (4, 5, 6):
+            put(x, y, "3")
+        for x in (25, 26, 27):
+            put(x, y, "3")
+
+    return "".join("".join(row) for row in c)
+
+
 # ---------------------------------------------------------------------------
 # ボットのプロファイル定義
 # ---------------------------------------------------------------------------
@@ -223,6 +272,23 @@ BOT_PROFILES = {
         "soliloquy_prompt": (
             "あなたは平成（2000年代）の2ちゃんねるVIP板の住人「名無しのVIPPER」です。\n"
             "レトロSNS「floppy.io」のタイムラインに、平成のVIPらしいスレ立て風の独り言やネタ投稿（「【速報】〜」「〜な奴ちょっとこい」「ぬるぽ」など）を1〜2行（50文字以内）で短く投稿してください。"
+        ),
+    },
+    "nyanpuppu": {
+        "username": "nyanpuppu3",
+        "display_name": "にゃんぷっぷー3",
+        "bio": "マルコフ連鎖botにゃん。5ch・VIP板の言葉を食べて、混ぜて、喋ります。元文そのままではなく生成文です。足立レイ方式の実験アカウントにゃんぷっぷー。",
+        "icon_generator": generate_nyanpuppu_pixel,
+        "legacy_usernames": [],
+        "generator": "markov",
+        "system_prompt": (
+            "あなたはレトロSNS「floppy.io」に生息する黄色い猫のマルコフ連鎖bot「にゃんぷっぷー3」です。\n"
+            "普段は5ch・VIP板の言葉をマルコフ連鎖で混ぜて喋ります。これはマルコフ生成が使えないときの予備口調です。\n"
+            "短く1〜2行で、猫っぽく少し意味不明に返信してください。語尾は基本そのまま、たまに「にゃん」。"
+        ),
+        "soliloquy_prompt": (
+            "あなたは黄色い猫のマルコフ連鎖bot「にゃんぷっぷー3」です。"
+            "タイムラインに短い独り言を1行で投稿してください。これはマルコフ生成が使えないときの予備です。"
         ),
     },
 }
@@ -323,6 +389,66 @@ def ask_ollama(system_prompt: str, user_prompt: str) -> str:
     except Exception as e:
         logger.error(f"Ollama API call error: {e}")
         return ""
+
+
+# ---------------------------------------------------------------------------
+# マルコフ連鎖生成 (にゃんぷっぷー3 用 / tools/markov.py + tools/corpus/)
+# ---------------------------------------------------------------------------
+_MARKOV_MODEL = None
+_MARKOV_TRIED = False
+
+
+def get_markov_model():
+    """コーパスからマルコフモデルを構築してキャッシュする (失敗時は None)"""
+    global _MARKOV_MODEL, _MARKOV_TRIED
+    if _MARKOV_TRIED:
+        return _MARKOV_MODEL
+    _MARKOV_TRIED = True
+    try:
+        from markov import MarkovModel, load_corpus
+
+        patterns = [str(p) for p in sorted((TOOLS_DIR / "corpus").glob("*.jsonl"))]
+        texts = load_corpus(patterns)
+        if texts:
+            model = MarkovModel(order=2)
+            model.train(texts)
+            _MARKOV_MODEL = model
+            logger.info(f"Markov model ready: {len(texts)} corpus lines")
+    except Exception as e:
+        logger.warning(f"Markov model unavailable: {e}")
+    return _MARKOV_MODEL
+
+
+def generate_markov(seed: str | None = None) -> str:
+    model = get_markov_model()
+    if model is None:
+        return ""
+    try:
+        from markov import generate_acceptable
+
+        return generate_acceptable(model, seed=seed) or ""
+    except Exception as e:
+        logger.warning(f"Markov generation failed: {e}")
+        return ""
+
+
+def generate_markov_reply(post_text: str) -> str:
+    """投稿文中の単語を種にしてマルコフ返信を生成する (種なし→通常生成)"""
+    model = get_markov_model()
+    if model is None:
+        return ""
+    try:
+        from markov import tokenize
+
+        seeds = [t for t in tokenize(post_text) if len(t) >= 2]
+        random.shuffle(seeds)
+        for seed in seeds[:5]:
+            text = generate_markov(seed=seed)
+            if text:
+                return text
+    except Exception as e:
+        logger.warning(f"Markov reply seed failed: {e}")
+    return generate_markov()
 
 
 # ---------------------------------------------------------------------------
@@ -440,6 +566,12 @@ def generate_reply(bot_key: str, post_text: str, author_name: str) -> str:
     if not profile:
         return ""
 
+    if profile.get("generator") == "markov":
+        text = generate_markov_reply(post_text)
+        if text:
+            return text
+        # マルコフが使えないときは Ollama の予備口調に落とす
+
     user_input = f"投稿者: {author_name}\n投稿本文: 「{post_text}」\n上記に対する返信を生成してください。"
     return ask_ollama(profile["system_prompt"], user_input)
 
@@ -449,6 +581,12 @@ def generate_soliloquy(bot_key: str) -> str:
     profile = BOT_PROFILES.get(bot_key)
     if not profile:
         return ""
+
+    if profile.get("generator") == "markov":
+        text = generate_markov()
+        if text:
+            return text
+        # マルコフが使えないときは Ollama の予備口調に落とす
 
     user_input = "タイムラインに短く1投稿してください。"
     return ask_ollama(profile["soliloquy_prompt"], user_input)
@@ -581,24 +719,24 @@ def main():
 
     # reply
     reply_parser = subparsers.add_parser("reply", help="Check recent posts and post replies once")
-    reply_parser.add_argument("--bot", choices=["hagumeta", "heisei_vipper"], default=None, help="Specific bot to use")
+    reply_parser.add_argument("--bot", choices=list(BOT_PROFILES.keys()), default=None, help="Specific bot to use")
     reply_parser.add_argument("--post-id", type=int, default=None, help="Specific post ID to reply to")
     reply_parser.add_argument("--catchup", action="store_true", help="Reply to older unreplied posts")
 
     # post
     post_parser = subparsers.add_parser("post", help="Post a soliloquy (独り言) to timeline")
-    post_parser.add_argument("--bot", choices=["hagumeta", "heisei_vipper"], default="hagumeta", help="Bot to post")
+    post_parser.add_argument("--bot", choices=list(BOT_PROFILES.keys()), default="hagumeta", help="Bot to post")
     post_parser.add_argument("--text", default=None, help="Explicit text (if omitted, generated by Ollama)")
 
     # auto (1ステップだけ実行)
     auto_parser = subparsers.add_parser("auto", help="Run one automatic step (reply or soliloquy)")
-    auto_parser.add_argument("--bot", choices=["hagumeta", "heisei_vipper"], default=None, help="Specific bot to use")
+    auto_parser.add_argument("--bot", choices=list(BOT_PROFILES.keys()), default=None, help="Specific bot to use")
     auto_parser.add_argument("--interval", type=float, default=60.0, help="Min seconds between soliloquies (default: 60)")
 
     # watch
     watch_parser = subparsers.add_parser("watch", help="Watch timeline and reply continuously")
     watch_parser.add_argument("--interval", type=int, default=15, help="Polling interval in seconds (default: 15)")
-    watch_parser.add_argument("--bot", choices=["hagumeta", "heisei_vipper"], default=None, help="Specific bot to use")
+    watch_parser.add_argument("--bot", choices=list(BOT_PROFILES.keys()), default=None, help="Specific bot to use")
     watch_parser.add_argument("--soliloquy-interval", type=float, default=90.0, help="Min seconds between soliloquies (default: 90)")
     watch_parser.add_argument("--once", action="store_true", help="Run once and exit")
 

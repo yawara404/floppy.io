@@ -123,6 +123,11 @@ watch(
         <NuxtLink class="post-user" :to="'/u/' + post.username">
           {{ post.display_name || post.username }}
         </NuxtLink>
+        <span
+          v-if="post.is_bot || ['hagumeta', 'heisei_vipper', 'adachi_rei'].includes(post.username)"
+          class="bot-badge"
+          title="自動コメント・自律Bot"
+        >BOT</span>
         <span class="post-handle">@{{ post.username }}</span>
         <span class="post-bytes">[B] {{ totalBytes.toLocaleString('ja-JP') }} bytes</span>
 

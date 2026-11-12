@@ -38,10 +38,14 @@ POST_COLUMNS = """p.id,
   p.created_at"""
 
 
+BOT_USERNAMES = {"hagumeta", "heisei_vipper", "adachi_rei"}
+
+
 def with_media(row: dict[str, Any] | None) -> dict[str, Any] | None:
     if not row:
         return row
     result = dict(row)
+    result["is_bot"] = str(result.get("username") or "") in BOT_USERNAMES
     result["image_url"] = upload_url(row.get("image_path"))
     result["floppy_url"] = upload_url(row.get("floppy_path"))
     result["floppy_kind"] = (

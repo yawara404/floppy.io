@@ -127,11 +127,13 @@ def list_posts(
     q: str = "",
     feed: str = "",
     disk: str = "",
+    bot: str = "",
 ) -> dict:
     maybe_trigger_bot_background()
     username = username.strip()
     keyword = q.strip()
     disk_slug = disk.strip().lower()
+    bot_filter = bot.strip().lower()
 
     sql = f"""SELECT {POST_COLUMNS}
                 FROM posts p
@@ -141,6 +143,18 @@ def list_posts(
 
     # 返信はスレッドページ（/api/thread）でのみ表示する
     where.append("p.reply_to_id IS NULL")
+
+    # bot フィルター (bot=0 / bot=false: bot除外, bot=only: botのみ)
+    bot_names = ("hagumeta", "heisei_vipper", "adachi_rei")
+    if bot_filter in ("0", "false", "off", "no"):
+        placeholders = ",".join(["%s"] * len(bot_names))
+        where.append(f"u.username NOT IN ({placeholders})")
+        params.extend(bot_names)
+    elif bot_filter in ("only", "1", "bot"):
+        if bot_filter == "only":
+            placeholders = ",".join(["%s"] * len(bot_names))
+            where.append(f"u.username IN ({placeholders})")
+            params.extend(bot_names)
 
     if username:
         where.append("u.username = %s")

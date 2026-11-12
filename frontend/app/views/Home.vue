@@ -16,6 +16,25 @@ const error = ref('')
 const loading = ref(true)
 let loadSequence = 0
 
+// 'all' = すべて, 'human' = 人間のみ, 'only' = Botのみ
+const botFilter = ref('all')
+
+if (typeof window !== 'undefined') {
+  const saved = localStorage.getItem('floppy_bot_filter')
+  if (saved && ['all', 'human', 'only'].includes(saved)) {
+    botFilter.value = saved
+  }
+}
+
+function setBotFilter(filter) {
+  if (botFilter.value === filter) return
+  botFilter.value = filter
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('floppy_bot_filter', filter)
+  }
+  load()
+}
+
 const isFollowingFeed = computed(() => props.feed === 'following')
 
 // 未ログインの全体タイムラインでのみランディング用ヒーローを出す
@@ -54,7 +73,17 @@ async function load() {
   loading.value = true
 
   try {
-    const path = isFollowingFeed.value ? '/posts?feed=following' : '/posts'
+    const params = new URLSearchParams()
+    if (isFollowingFeed.value) {
+      params.set('feed', 'following')
+    }
+    if (botFilter.value === 'human') {
+      params.set('bot', '0')
+    } else if (botFilter.value === 'only') {
+      params.set('bot', 'only')
+    }
+    const queryString = params.toString()
+    const path = queryString ? `/posts?${queryString}` : '/posts'
     const data = await apiGet(path)
     if (sequence === loadSequence) posts.value = data.posts || []
   } catch (e) {
@@ -256,7 +285,32 @@ onMounted(load)
           >フォロー中</NuxtLink>
           <NuxtLink class="feed-tab" to="/disks">ディスク</NuxtLink>
         </nav>
-        <span class="timeline-count">NEWEST FIRST</span>
+        <div class="timeline-meta">
+          <div class="bot-filter-group" role="group" aria-label="Bot切り替え">
+            <button
+              type="button"
+              class="bot-filter-btn"
+              :class="{ active: botFilter === 'all' }"
+              title="Botを含むすべての投稿を表示"
+              @click="setBotFilter('all')"
+            >すべて</button>
+            <button
+              type="button"
+              class="bot-filter-btn"
+              :class="{ active: botFilter === 'human' }"
+              title="Botを除いた投稿のみを表示"
+              @click="setBotFilter('human')"
+            >人間のみ</button>
+            <button
+              type="button"
+              class="bot-filter-btn"
+              :class="{ active: botFilter === 'only' }"
+              title="Botの投稿のみを表示"
+              @click="setBotFilter('only')"
+            >Botのみ</button>
+          </div>
+          <span class="timeline-count">NEWEST FIRST</span>
+        </div>
       </div>
 
       <div v-if="needsLogin" class="callout">
