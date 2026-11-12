@@ -27,6 +27,7 @@ logs/
 .admin*
 tools/bot_state.json
 tools/bot_config.json
+tools/*_config.json
 tools/bot_daemon.pid
 
 # DB のダンプ（パスワードハッシュを含むためコミットしない）

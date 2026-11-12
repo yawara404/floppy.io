@@ -88,6 +88,12 @@ function onAvatarError() {
 // 投稿の種類ラベル（計器表示用）
 const postKind = computed(() => postKindOf(props.post))
 
+const isBot = computed(() => {
+  if (props.post.is_bot) return true
+  const u = String(props.post.username || '').toLowerCase()
+  return ['hagumeta', 'heisei_vipper', 'adachi_rei', 'nyanpuppu3'].includes(u) || u.startsWith('nyanpuppu')
+})
+
 // 別の投稿に切り替わったとき / アイコンURLが変わったときは画像を再評価する
 watch(
   () => [props.post.id, props.post.author_icon_url, props.post.author_avatar_url],
@@ -124,7 +130,7 @@ watch(
           {{ post.display_name || post.username }}
         </NuxtLink>
         <span
-          v-if="post.is_bot || ['hagumeta', 'heisei_vipper', 'adachi_rei'].includes(post.username)"
+          v-if="isBot"
           class="bot-badge"
           title="自動コメント・自律Bot"
         >BOT</span>

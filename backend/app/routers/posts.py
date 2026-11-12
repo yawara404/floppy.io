@@ -145,15 +145,15 @@ def list_posts(
     where.append("p.reply_to_id IS NULL")
 
     # bot フィルター (bot=0 / bot=false: bot除外, bot=only: botのみ)
-    bot_names = ("hagumeta", "heisei_vipper", "adachi_rei")
+    bot_names = ("hagumeta", "heisei_vipper", "adachi_rei", "nyanpuppu3", "nyanpuppu")
     if bot_filter in ("0", "false", "off", "no"):
         placeholders = ",".join(["%s"] * len(bot_names))
-        where.append(f"u.username NOT IN ({placeholders})")
+        where.append(f"(u.username NOT IN ({placeholders}) AND u.username NOT LIKE 'nyanpuppu%%')")
         params.extend(bot_names)
     elif bot_filter in ("only", "1", "bot"):
         if bot_filter == "only":
             placeholders = ",".join(["%s"] * len(bot_names))
-            where.append(f"u.username IN ({placeholders})")
+            where.append(f"(u.username IN ({placeholders}) OR u.username LIKE 'nyanpuppu%%')")
             params.extend(bot_names)
 
     if username:
