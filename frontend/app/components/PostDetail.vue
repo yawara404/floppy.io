@@ -3,7 +3,12 @@
 //   Miiverse の「ボード + 大きな投稿 + 共感」と、
 //   旧 Twitter の「メディア + アクション行」を合わせた見た目。
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { drawPixelContained, FLOPPY_AVATAR } from '~/utils/pixel'
+import { drawPixelContained } from '~/utils/pixel'
+import { formatDateTime } from '~/utils/format'
+import { hasPixelArt, postKindOf } from '~/utils/post'
+import { useAvatarImage } from '~/composables/useAvatarImage'
+import { useAvatarCanvas } from '~/composables/useAvatarCanvas'
+import YouTubeEmbed from './YouTubeEmbed.vue'
 import { resolveMediaUrl } from '~/utils/api'
 
 const props = defineProps({
@@ -13,110 +18,40 @@ const props = defineProps({
 
 const emit = defineEmits(['like', 'share', 'reply', 'delete'])
 
-const avatarCanvas = ref(null)
-const avatarError = ref(false)
-const avatarImage = computed(() => {
-  if (avatarError.value) return ''
-  return resolveMediaUrl(
-    props.post.author_icon_url || props.post.author_avatar_url || '',
-  )
-})
+const { canvas: avatarCanvas, draw: drawAvatar } = useAvatarCanvas(
+  () => props.post,
+)
+const {
+  image: avatarImage,
+  reset: resetAvatar,
+  onError: markAvatarError,
+} = useAvatarImage(() => props.post)
 const pixelCanvas = ref(null)
-const playing = ref(false)
 const confirming = ref(false)
 
-const hasPixel = computed(() => /[1-9A-Fa-f]/.test(String(props.post.pixel_data || '')))
+const hasPixel = computed(() => hasPixelArt(props.post))
 const totalBytes = computed(() => Number(props.post.total_bytes) || 0)
 const likeCount = computed(() => Number(props.post.like_count) || 0)
 const replyCount = computed(() => Number(props.post.reply_count) || 0)
 
-const postKind = computed(() => {
-  const post = props.post
-  if (post.youtube_id) return 'YOUTUBE'
-  if (post.image_url) return 'IMAGE'
-  if (post.floppy_url) return post.floppy_kind === 'audio' ? 'AUDIO' : 'FILE'
-  if (hasPixel.value) return 'PIXEL'
-  return 'TEXT'
-})
+const postKind = computed(() => postKindOf(props.post))
 
-const youtubeThumb = computed(() => {
-  if (props.post.youtube_thumbnail) return props.post.youtube_thumbnail
-  return props.post.youtube_id
-    ? `https://i.ytimg.com/vi/${props.post.youtube_id}/hqdefault.jpg`
-    : ''
-})
-
-const youtubeWatchUrl = computed(() =>
-  props.post.youtube_id
-    ? `https://www.youtube.com/watch?v=${props.post.youtube_id}`
-    : '',
-)
-
-const youtubeEmbedUrl = computed(() => {
-  if (!props.post.youtube_id) return ''
-
-  const params = new URLSearchParams({
-    autoplay: '1',
-    rel: '0',
-    playsinline: '1',
-  })
-
-  if (typeof window !== 'undefined' && window.location.origin) {
-    params.set('origin', window.location.origin)
-  }
-
-  return `https://www.youtube.com/embed/${props.post.youtube_id}?${params}`
-})
-
-const isIpHost = computed(
-  () =>
-    typeof window !== 'undefined' &&
-    /^\d{1,3}(\.\d{1,3}){3}$/.test(window.location.hostname),
-)
-
-const localhostUrl = computed(() => {
-  if (typeof window === 'undefined') return '#'
-  const { protocol, port, pathname, search, hash } = window.location
-  return `${protocol}//localhost${port ? ':' + port : ''}${pathname}${search}${hash}`
-})
-
-function fmtDate(value) {
-  if (!value) return ''
-  const date = new Date(String(value).replace(' ', 'T'))
-  if (Number.isNaN(date.getTime())) return String(value)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
-
-function render() {
-  if (avatarCanvas.value) {
-    if (hasPixel.value) {
-      drawPixelContained(
-        avatarCanvas.value,
-        props.post.pixel_data,
-        props.post.pixel_width,
-        props.post.pixel_height,
-      )
-    } else {
-      drawPixelContained(avatarCanvas.value, FLOPPY_AVATAR)
-    }
-  }
-  if (pixelCanvas.value && hasPixel.value) {
-    drawPixelContained(
-      pixelCanvas.value,
-      props.post.pixel_data,
-      props.post.pixel_width,
-      props.post.pixel_height,
-    )
-  }
+function drawPixelCanvas() {
+  if (!pixelCanvas.value || !hasPixel.value) return
+  drawPixelContained(
+    pixelCanvas.value,
+    props.post.pixel_data,
+    props.post.pixel_width,
+    props.post.pixel_height,
+  )
 }
 
 function onAvatarError() {
-  avatarError.value = true
-  nextTick(render)
+  markAvatarError()
+  nextTick(drawAvatar)
 }
 
-onMounted(render)
+onMounted(drawPixelCanvas)
 watch(
   () => [
     props.post.id,
@@ -126,9 +61,9 @@ watch(
     props.post.author_avatar_url,
   ],
   async () => {
-    avatarError.value = false
+    resetAvatar()
     await nextTick()
-    render()
+    drawPixelCanvas()
   },
 )
 </script>
@@ -172,47 +107,13 @@ watch(
     <p v-if="post.text" class="detail-text">{{ post.text }}</p>
 
     <!-- YouTube（クリックするまで iframe を読み込まない） -->
-    <div v-if="post.youtube_id" class="youtube-embed detail-youtube">
-      <div class="youtube-frame">
-        <iframe
-          v-if="playing"
-          :src="youtubeEmbedUrl"
-          title="YouTube 動画プレーヤー"
-          referrerpolicy="strict-origin-when-cross-origin"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowfullscreen
-        ></iframe>
-        <button
-          v-else
-          type="button"
-          class="youtube-thumb"
-          aria-label="YouTube を再生"
-          @click="playing = true"
-        >
-          <img :src="youtubeThumb" alt="" loading="lazy" />
-          <span class="youtube-play" aria-hidden="true">▶</span>
-        </button>
-      </div>
-
-      <div class="youtube-meta">
-        <span class="youtube-title">
-          ▶ {{ post.youtube_title || 'YouTube 動画' }}
-        </span>
-        <a
-          class="youtube-open"
-          :href="youtubeWatchUrl"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          YouTube で見る ↗
-        </a>
-      </div>
-
-      <p v-if="isIpHost" class="youtube-hint">
-        このページは IP アドレスで開かれているため、YouTube を埋め込み再生できません。
-        <a :href="localhostUrl">localhost で開き直す</a>
-      </p>
-    </div>
+    <YouTubeEmbed
+      v-if="post.youtube_id"
+      class="detail-youtube"
+      :video-id="post.youtube_id"
+      :title="post.youtube_title"
+      :thumbnail="post.youtube_thumbnail"
+    />
 
     <!-- 添付画像 -->
     <a
@@ -271,7 +172,7 @@ watch(
     <div class="detail-meta">
       <span>No.{{ post.id }}</span>
       <span aria-hidden="true">/</span>
-      <time>{{ fmtDate(post.created_at) }}</time>
+      <time>{{ formatDateTime(post.created_at) }}</time>
       <template v-if="post.disk">
         <span aria-hidden="true">/</span>
         <NuxtLink :to="'/d/' + post.disk.slug">[D] {{ post.disk.name }}</NuxtLink>

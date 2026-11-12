@@ -1,0 +1,114 @@
+[
+  {
+    "id": "01",
+    "source": "01_hero",
+    "start": 0,
+    "duration": 6,
+    "label": "もし、SNSの1投稿が…",
+    "caption": [
+      "もし、SNSの1投稿が",
+      "フロッピーディスク1枚分だったら？"
+    ],
+    "voice": "もし、SNSの一投稿が、フロッピーディスク一枚分だったら？",
+    "voice_duration": 4.781179
+  },
+  {
+    "id": "02",
+    "source": "01_hero",
+    "start": 0,
+    "duration": 6,
+    "label": "1 POST = 1 DISK",
+    "caption": [
+      "1投稿、1.44MB。",
+      "静けさと制約を楽しむ、レトロSNS。"
+    ],
+    "voice": "フロッピー・アイオーは、一投稿1.44メガバイトの、静かなレトロSNSです。",
+    "voice_duration": 5.742902
+  },
+  {
+    "id": "03",
+    "source": "05_draw_floppy",
+    "start": 1,
+    "duration": 13,
+    "label": "小さく描く。",
+    "caption": [
+      "ブラウザで描く、小さなドット絵。",
+      "16色のパレットから、自分だけの1枚を。"
+    ],
+    "voice": "ブラウザで、小さなドット絵を描く。十六色のパレットから色を選んで、ひとマスずつ、自分だけの一枚を仕上げます。",
+    "voice_duration": 8.386485
+  },
+  {
+    "id": "04",
+    "source": "06_text_and_aa",
+    "start": 2,
+    "duration": 8,
+    "label": "言葉を添える。",
+    "caption": [
+      "今日のひと言に、懐かしいAAも。",
+      "スタンプ感覚で、気持ちを添える。"
+    ],
+    "voice": "今日のひと言に、懐かしいアスキーアートも。スタンプ感覚で、気持ちを添えられます。",
+    "voice_duration": 5.662676
+  },
+  {
+    "id": "05",
+    "source": "07_capacity_meter",
+    "start": 3,
+    "duration": 8,
+    "label": "容量と、相談する。",
+    "caption": [
+      "本文も、絵も、添付ファイルも。",
+      "合計1.44MBに収める。"
+    ],
+    "voice": "本文も、絵も、添付ファイルも。使った容量を確かめながら、合計1.44メガバイトに収めます。",
+    "voice_duration": 7.338231
+  },
+  {
+    "id": "06",
+    "source": "04_disks",
+    "start": 0,
+    "duration": 6,
+    "label": "趣味を、持ち寄る。",
+    "caption": [
+      "コミュニティ「ディスク」で、",
+      "好きなものを持ち寄る。"
+    ],
+    "voice": "趣味のコミュニティ、ディスクで、好きなものを持ち寄れます。",
+    "voice_duration": 3.475601
+  },
+  {
+    "id": "07",
+    "source": "03_share_preview",
+    "start": 4,
+    "duration": 5,
+    "label": "小さな作品を、共有する。",
+    "caption": [
+      "投稿は、プレビューを確かめて共有。"
+    ],
+    "voice": "投稿は、プレビューを確かめて共有できます。",
+    "voice_duration": 3.185261
+  },
+  {
+    "id": "08",
+    "source": "02_pixel_post",
+    "start": 0,
+    "duration": 3,
+    "label": "Nuxt 4 × FastAPI",
+    "caption": [
+      "容量は、画面とAPIの両方で検証。"
+    ],
+    "voice": "画面とAPIで、容量を検証。",
+    "voice_duration": 2.465941
+  },
+  {
+    "id": "09",
+    "source": null,
+    "start": 0,
+    "duration": 5,
+    "label": "あなたの1枚を。",
+    "caption": [],
+    "voice": "小さな一枚に、あなたは何を残しますか？",
+    "voice_duration": 3.156145
+  }
+]

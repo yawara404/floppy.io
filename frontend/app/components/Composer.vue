@@ -5,6 +5,7 @@ import PixelEditor from './PixelEditor.vue'
 import { apiPost, apiUpload } from '~/utils/api'
 import { refreshUser } from '~/composables/useAuth'
 import { blankPixel, pixelIsBlank } from '~/utils/pixel'
+import { formatNumber } from '~/utils/format'
 
 const props = defineProps({
   // 書き込み先のディスク (コミュニティ)。null ならホームへ投稿する。
@@ -311,10 +312,6 @@ const draftBytes = computed(
 )
 const overLimit = computed(() => draftBytes.value > DISK_LIMIT)
 
-function fmt(n) {
-  return n.toLocaleString('ja-JP')
-}
-
 function onFileChange(event) {
   const file = event.target.files?.[0]
   if (!file) return
@@ -530,10 +527,10 @@ onBeforeUnmount(() => {
         />
 
         <span v-if="imageBytes" class="image-meta">
-          {{ fmt(imageBytes) }} bytes
+          {{ formatNumber(imageBytes) }} bytes
         </span>
         <span v-if="floppyFile" class="image-meta">
-          [F] {{ floppyFile.name }} · {{ fmt(floppyBytes) }} bytes
+          [F] {{ floppyFile.name }} · {{ formatNumber(floppyBytes) }} bytes
         </span>
         <button
           v-if="floppyFile"

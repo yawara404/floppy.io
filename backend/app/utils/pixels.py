@@ -60,6 +60,60 @@ _ICON_PIXEL_RE = re.compile(r"^[0-9A-Fa-f]{1024}$")
 _HEX_RE = re.compile(r"^[0-9A-Fa-f]+$")
 _ART_RE = re.compile(r"[1-9A-Fa-f]")
 
+# 初期アイコン（アイコン未設定のユーザー共通）。
+# サイトのロゴと同じ配色で、深緑の輪郭・クリームの本体・紙のラベル。
+# 透明（.）は背景を塗らず、置かれる枠の地色を活かす。
+DEFAULT_AVATAR_ROWS = (
+    "................",
+    ".DDDDDDDDDDDDDD.",
+    ".DCCCCCCCCCCCCD.",
+    ".DCCCGGGGGGCCCD.",
+    ".DCCCGGGGGGCCCD.",
+    ".DCCCGGGGGGCCCD.",
+    ".DCCCKKKKKKCCCD.",
+    ".DCCCCCCCCCCCCD.",
+    ".DCCEEEEEEEECCD.",
+    ".DCCPPPPPPPPCCD.",
+    ".DCCLLLLPPPPCCD.",
+    ".DCCPPPPPPPPCCD.",
+    ".DCCEEEEEPPPCCD.",
+    ".DCCPPPPPPPPCCD.",
+    ".DDDDDDDDDDDDDD.",
+    "................",
+)
+
+DEFAULT_AVATAR_COLORS = {
+    "D": "#174d35",  # 深緑（輪郭）
+    "C": "#e8e4d2",  # クリーム（本体）
+    "G": "#a9b3aa",  # グレー（シャッター）
+    "K": "#30363a",  # 濃灰（シャッターの影）
+    "P": "#fffdf1",  # 紙（ラベル）
+    "E": "#d4cfba",  # ラベルの縁・罫線
+    "L": "#1d6540",  # 緑の罫線
+}
+
+
+def default_avatar_svg(cell: int = 8) -> str:
+    """初期アイコン（16×16・背景は透明）を自己完結型 SVG で返す"""
+    size = len(DEFAULT_AVATAR_ROWS)
+    side = size * cell
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{side}" height="{side}" '
+        f'shape-rendering="crispEdges" viewBox="0 0 {side} {side}">'
+    ]
+    for y, row in enumerate(DEFAULT_AVATAR_ROWS):
+        for x, char in enumerate(row):
+            color = DEFAULT_AVATAR_COLORS.get(char)
+            if not color:
+                continue
+            parts.append(
+                f'<rect x="{x * cell}" y="{y * cell}" '
+                f'width="{cell}" height="{cell}" fill="{color}"/>'
+            )
+    parts.append("</svg>")
+    return "".join(parts)
+
+
 
 def normalize_canvas_size(width: object, height: object) -> tuple[int, int]:
     """キャンバスサイズを検証して (幅, 高さ) を返す (不正なら 16×16)"""

@@ -90,7 +90,12 @@ async def _serve_static(path: str) -> Response:
     target = _safe_dist_path(path)
     if target and target.is_file():
         media_type, _ = mimetypes.guess_type(str(target))
-        return FileResponse(target, media_type=media_type)
+        if target.suffix == ".webmanifest":
+            media_type = "application/manifest+json"
+        headers = {"Cache-Control": "no-cache"} if target.name in {
+            "sw.js", "manifest.webmanifest", "offline.html"
+        } else None
+        return FileResponse(target, media_type=media_type, headers=headers)
 
     # 履歴モードの SPA フォールバック:
     # /u/name や /p/12 のような拡張子のないパスは index.html を返す。

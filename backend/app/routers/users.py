@@ -22,10 +22,44 @@ from ..security import (
     verify_password,
 )
 from ..utils.images import validate_image_data
-from ..utils.pixels import normalize_icon_pixel, pixel_svg
+from ..utils.pixels import default_avatar_svg, normalize_icon_pixel, pixel_svg
 from ..utils.uploads import absolute_upload_url, delete_upload, save_upload, upload_url
 
 router = APIRouter(prefix="/api", tags=["users"])
+
+
+@router.get("/users/{username}/likes")
+def get_private_likes(
+    request: Request,
+    response: Response,
+    username: str,
+    offset: int = Query(default=0, ge=0),
+) -> dict:
+    """いいね履歴は本人専用。公開プロフィールには含めない。"""
+    me = require_user(request)
+    owner = fetch_one("SELECT id FROM users WHERE username = %s", (username.strip(),))
+    if not owner or int(owner["id"]) != int(me["id"]):
+        raise HTTPException(
+            403, "いいね履歴は本人だけが閲覧できます。",
+            headers={"Cache-Control": "private, no-store"},
+        )
+    response.headers["Cache-Control"] = "private, no-store"
+    rows = fetch_all(
+        f"""SELECT {POST_COLUMNS}, l.created_at AS liked_at
+              FROM likes l
+              JOIN posts p ON p.id = l.post_id
+              JOIN users u ON u.id = p.user_id
+             WHERE l.user_id = %s
+             ORDER BY l.created_at DESC, p.id DESC
+             LIMIT 51 OFFSET %s""",
+        (int(me["id"]), offset),
+    )
+    return {
+        "posts": attach_disks(attach_reply_counts(attach_likes(
+            [with_media(post) for post in rows[:50]], me,
+        ))),
+        "next_offset": offset + 50 if len(rows) > 50 else None,
+    }
 
 
 @router.get("/users/{username}/connections/{kind}")
@@ -82,7 +116,7 @@ def get_icon_svg(request: Request, username: str) -> Response:
       1. 32×32 のドット絵アイコン
       2. アップロードされたプロフィール画像（リダイレクト）
       3. 最新の正方形ドット絵投稿
-    どれも無ければ 404（フロントは [F] にフォールバックする）。
+      4. どれも無ければ初期アイコン（サイトのロゴ色のフロッピー）
     """
     row = fetch_one(
         "SELECT id, icon_pixel, avatar_path FROM users WHERE username = %s",
@@ -120,7 +154,13 @@ def get_icon_svg(request: Request, username: str) -> Response:
             headers={"Cache-Control": "public, max-age=300"},
         )
 
-    raise HTTPException(404, "アイコンが設定されていません。")
+    # アイコン未設定でも 404 にせず、サイト共通の初期アイコンを返す。
+    # （404 だと投稿カードが文字だけのフォールバックになり、見た目が崩れる）
+    return Response(
+        content=default_avatar_svg(cell=8),
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
 
 
 

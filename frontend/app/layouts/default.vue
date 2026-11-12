@@ -17,7 +17,7 @@ const navToggle = ref(null)
 const moreToggle = ref(null)
 
 const path = computed(() => route.path || '/')
-const isProfilePage = computed(() => /^\/u\/[^/]+$/.test(path.value))
+const isProfilePage = computed(() => /^\/u\/[^/]+(?:\/(?:following|followers))?$/.test(path.value))
 const isHome = computed(() => path.value === '/' || path.value === '/following')
 const isLanding = computed(() => path.value === '/' && authReady.value && !isLoggedIn.value)
 

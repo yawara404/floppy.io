@@ -4,7 +4,12 @@
 // X (Twitter) の共有カードと同じ流れで「カードのプレビュー → 共有先を選ぶ」
 // という構成にしている。共有 URL と埋め込み HTML はこの 1 か所で管理する。
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
-import { drawPixelContained, FLOPPY_AVATAR } from '~/utils/pixel'
+import { drawPixelContained } from '~/utils/pixel'
+import { formatDateParts } from '~/utils/format'
+import { hasPixelArt, postKindOf, youtubeThumbnail } from '~/utils/post'
+import { useAvatarImage } from '~/composables/useAvatarImage'
+import { useAvatarCanvas } from '~/composables/useAvatarCanvas'
+import { useDialog } from '~/composables/useDialog'
 import { apiGet, resolveMediaUrl } from '~/utils/api'
 import { usePostShare } from '~/composables/usePostShare'
 
@@ -23,17 +28,15 @@ const {
   shareNative,
 } = usePostShare()
 
-const dialogEl = ref(null)
-const closeEl = ref(null)
 const canvas = ref(null)
-const avatarCanvas = ref(null)
-const avatarError = ref(false)
-const avatarImage = computed(() => {
-  if (avatarError.value) return ''
-  return resolveMediaUrl(
-    props.post.author_icon_url || props.post.author_avatar_url || '',
-  )
-})
+const { canvas: avatarCanvas, draw: drawAvatar } = useAvatarCanvas(
+  () => props.post,
+)
+const {
+  image: avatarImage,
+  reset: resetAvatar,
+  onError: markAvatarError,
+} = useAvatarImage(() => props.post)
 
 const copied = ref('')
 const embedHtml = ref('')
@@ -47,15 +50,9 @@ const shareUrl = computed(() => postUrl(props.post))
 const xUrl = computed(() => xShareUrl(props.post))
 const lineUrl = computed(() => lineShareUrl(props.post))
 
-const hasPixel = computed(() => /[1-9A-Fa-f]/.test(String(props.post.pixel_data || '')))
+const hasPixel = computed(() => hasPixelArt(props.post))
 
-const youtubeThumb = computed(() => {
-  if (!props.post.youtube_id) return ''
-  return (
-    props.post.youtube_thumbnail ||
-    `https://i.ytimg.com/vi/${props.post.youtube_id}/hqdefault.jpg`
-  )
-})
+const youtubeThumb = computed(() => youtubeThumbnail(props.post))
 
 // サイトの投稿カードと同じく「動画 > 画像 > ドット絵」の優先順で 1 枚だけ出す
 const media = computed(() => {
@@ -73,14 +70,7 @@ const media = computed(() => {
 
 const totalBytes = computed(() => Number(props.post.total_bytes) || 0)
 
-const postKind = computed(() => {
-  const post = props.post
-  if (post.youtube_id) return 'YOUTUBE'
-  if (post.image_url) return 'IMAGE'
-  if (post.floppy_url) return post.floppy_kind === 'audio' ? 'AUDIO' : 'FILE'
-  if (hasPixel.value) return 'PIXEL'
-  return 'TEXT'
-})
+const postKind = computed(() => postKindOf(props.post))
 
 const likeCount = computed(() => Number(props.post.like_count) || 0)
 const replyCount = computed(() => Number(props.post.reply_count) || 0)
@@ -102,20 +92,7 @@ const textParts = computed(() => {
   })
 })
 
-function fmtDateTime(value) {
-  if (!value) return { time: '', date: '' }
-
-  const date = new Date(String(value).replace(' ', 'T'))
-  if (Number.isNaN(date.getTime())) return { time: '', date: String(value) }
-
-  const pad = (n) => String(n).padStart(2, '0')
-  return {
-    time: `${pad(date.getHours())}:${pad(date.getMinutes())}`,
-    date: `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`,
-  }
-}
-
-const dateTime = computed(() => fmtDateTime(props.post.created_at))
+const dateTime = computed(() => formatDateParts(props.post.created_at))
 const timeLabel = computed(() => dateTime.value.time)
 const dateLabel = computed(() => dateTime.value.date)
 
@@ -129,25 +106,9 @@ function renderPixel() {
   )
 }
 
-// サイトの投稿カードと同じく、投稿のドット絵をアバターにする
-function renderAvatar() {
-  if (!avatarCanvas.value) return
-
-  if (hasPixel.value) {
-    drawPixelContained(
-      avatarCanvas.value,
-      props.post.pixel_data,
-      props.post.pixel_width,
-      props.post.pixel_height,
-    )
-  } else {
-    drawPixelContained(avatarCanvas.value, FLOPPY_AVATAR)
-  }
-}
-
 function onAvatarError() {
-  avatarError.value = true
-  nextTick(renderAvatar)
+  markAvatarError()
+  nextTick(drawAvatar)
 }
 
 // 埋め込み HTML は /api/preview が組み立てる自己完結スニペット
@@ -194,27 +155,16 @@ const statusMessage = computed(() => {
 })
 
 // ---------------------------------------------------------------------------
-// モーダルの後始末（フォーカス / Escape / 背景スクロール）
+// モーダルの開閉（フォーカス / 背景スクロール）は composable に任せる
 // ---------------------------------------------------------------------------
-let returnFocus = null
-let hadScrollLock = false
+const { dialogEl, closeEl } = useDialog()
 
 onMounted(async () => {
-  returnFocus = document.activeElement
-  hadScrollLock = document.body.classList.contains('is-modal-open')
-  document.body.classList.add('is-modal-open')
-
-  await nextTick()
-  dialogEl.value?.showModal()
-  closeEl.value?.focus()
   renderPixel()
-  renderAvatar()
+  drawAvatar()
 })
 
 onBeforeUnmount(() => {
-  dialogEl.value?.close()
-  if (!hadScrollLock) document.body.classList.remove('is-modal-open')
-  returnFocus?.focus?.()
   if (copiedTimer) clearTimeout(copiedTimer)
 })
 
@@ -231,9 +181,9 @@ watch(
     () => props.post.author_avatar_url,
   ],
   async () => {
-    avatarError.value = false
+    resetAvatar()
     await nextTick()
-    renderAvatar()
+    drawAvatar()
   },
 )
 </script>

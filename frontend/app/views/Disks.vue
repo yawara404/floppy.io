@@ -6,6 +6,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { apiGet, apiPost } from '~/utils/api'
 import { isLoggedIn, authReady } from '~/composables/useAuth'
+import { formatDate } from '~/utils/format'
 
 const disks = ref([])
 const loading = ref(true)
@@ -49,14 +50,6 @@ watch(name, (value) => {
 
 function onSlugInput() {
   slugTouched.value = true
-}
-
-function fmtDate(value) {
-  if (!value) return ''
-  const date = new Date(String(value).replace(' ', 'T'))
-  if (Number.isNaN(date.getTime())) return ''
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`
 }
 
 async function load() {
@@ -210,7 +203,7 @@ onMounted(load)
         <span class="disk-card-foot">
           <span>{{ disk.post_count }} POSTS</span>
           <span>{{ disk.member_count }} MEMBERS</span>
-          <span v-if="disk.last_post_at">{{ fmtDate(disk.last_post_at) }}</span>
+          <span v-if="disk.last_post_at">{{ formatDate(disk.last_post_at) }}</span>
           <span v-else>EMPTY</span>
         </span>
       </NuxtLink>

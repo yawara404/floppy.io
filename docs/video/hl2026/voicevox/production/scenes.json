@@ -1,0 +1,142 @@
+[
+  {
+    "id": "01",
+    "source": "01_hero",
+    "start": 0,
+    "duration": 6,
+    "label": "もし、SNSの1投稿が…",
+    "caption": [
+      "もし、SNSの1投稿が",
+      "フロッピーディスク1枚分だったら？"
+    ],
+    "voice_duration": 5.28,
+    "voice_files": [
+      "001_春日部つむぎ（ノーマル）_もし、SNSの1投….wav",
+      "002_春日部つむぎ（ノーマル）_.wav"
+    ]
+  },
+  {
+    "id": "02",
+    "source": "01_hero",
+    "start": 0,
+    "duration": 9,
+    "label": "1 POST = 1 DISK",
+    "caption": [
+      "1投稿、1.44MB。",
+      "静けさと制約を楽しむ、レトロSNS。"
+    ],
+    "voice_duration": 8.288,
+    "voice_files": [
+      "003_春日部つむぎ（ノーマル）_floppy.io….wav",
+      "004_春日部つむぎ（ノーマル）_  .wav"
+    ]
+  },
+  {
+    "id": "03",
+    "source": "05_draw_floppy",
+    "start": 0,
+    "duration": 7,
+    "label": "小さく描く。",
+    "caption": [
+      "ブラウザで描く、小さなドット絵。",
+      "16色のパレットから、自分だけの1枚を。"
+    ],
+    "voice_duration": 3.968,
+    "voice_files": [
+      "005_春日部つむぎ（ノーマル）_ブラウザで小さなド….wav"
+    ]
+  },
+  {
+    "id": "04",
+    "source": "06_text_and_aa",
+    "start": 2,
+    "duration": 5,
+    "label": "言葉を添える。",
+    "caption": [
+      "今日のひと言に、懐かしいAAも。",
+      "スタンプ感覚で、気持ちを添える。"
+    ],
+    "voice_duration": 3.8293333333333335,
+    "voice_files": [
+      "006_春日部つむぎ（ノーマル）_懐かしいアスキーア….wav",
+      "007_春日部つむぎ（ノーマル）_  .wav"
+    ]
+  },
+  {
+    "id": "05",
+    "source": "07_capacity_meter",
+    "start": 3,
+    "duration": 10,
+    "label": "容量と、相談する。",
+    "caption": [
+      "本文も、絵も、添付ファイルも。",
+      "合計1.44MBに収める。"
+    ],
+    "voice_duration": 8.885333333333334,
+    "voice_files": [
+      "008_春日部つむぎ（ノーマル）_本文も、絵も、添付….wav",
+      "009_春日部つむぎ（ノーマル）_使った容量を確かめ….wav",
+      "010_春日部つむぎ（ノーマル）_  .wav"
+    ]
+  },
+  {
+    "id": "06",
+    "source": "04_disks",
+    "start": 0,
+    "duration": 6,
+    "label": "趣味を、持ち寄る。",
+    "caption": [
+      "コミュニティ「ディスク」で、",
+      "好きなものを持ち寄る。"
+    ],
+    "voice_duration": 4.842666666666666,
+    "voice_files": [
+      "011_春日部つむぎ（ノーマル）_趣味のコミュニティ….wav"
+    ]
+  },
+  {
+    "id": "07",
+    "source": "08_feed",
+    "start": 0,
+    "duration": 5,
+    "label": "自分のペースで。",
+    "caption": [
+      "投稿は、新しい順。",
+      "自分のペースで眺められる。"
+    ],
+    "voice_duration": 3.744,
+    "voice_files": [
+      "012_春日部つむぎ（ノーマル）_投稿は新しい順。.wav",
+      "013_春日部つむぎ（ノーマル）_自分のペースで眺め….wav",
+      "014_春日部つむぎ（ノーマル）_  .wav"
+    ]
+  },
+  {
+    "id": "08",
+    "source": "02_pixel_post",
+    "start": 0,
+    "duration": 5,
+    "label": "Nuxt 4 × FastAPI",
+    "caption": [
+      "容量制限は、画面とサーバーの両方で検証。"
+    ],
+    "voice_duration": 3.8506666666666667,
+    "voice_files": [
+      "015_春日部つむぎ（ノーマル）_容量制限は、画面と….wav",
+      "016_春日部つむぎ（ノーマル）_  .wav"
+    ]
+  },
+  {
+    "id": "09",
+    "source": null,
+    "start": 0,
+    "duration": 7,
+    "label": "あなたの1枚を。",
+    "caption": [],
+    "voice_duration": 5.269333333333333,
+    "voice_files": [
+      "017_春日部つむぎ（ノーマル）_小さな1枚に、あな….wav",
+      "018_春日部つむぎ（ノーマル）_floppy.io。.wav"
+    ]
+  }
+]

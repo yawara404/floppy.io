@@ -90,8 +90,9 @@ def login(request: Request, payload: LoginIn) -> dict:
                   avatar_width, avatar_height, icon_pixel, allow_replies,
                   created_at, password_hash
              FROM users
-            WHERE username = %s""",
-        (username,),
+            WHERE username = %s
+               OR (username = 'floppy' AND %s IN ('floppy.io', 'floppy_io'))""",
+        (username, username),
     )
 
     if not row or not verify_password(password, str(row.get("password_hash") or "")):

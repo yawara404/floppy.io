@@ -5,10 +5,12 @@ from __future__ import annotations
 import html
 import re
 from datetime import datetime
+import subprocess
+import sys
+import time
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request, status
-from ..utils.pixels import pixel_svg
-from ..utils.uploads import absolute_base, absolute_upload_url, floppy_kind
 
 from ..config import DISK_LIMIT_BYTES
 from ..db import execute, fetch_all, fetch_one
@@ -16,9 +18,18 @@ from ..disks import attach_disks
 from ..posts import POST_COLUMNS, attach_likes, attach_reply_counts, with_media
 from ..security import current_user, require_user
 from ..utils.images import validate_image_data
-from ..utils.pixels import is_blank_pixel, normalize_canvas_size, normalize_pixel
+from ..utils.pixels import (
+    is_blank_pixel,
+    normalize_canvas_size,
+    normalize_pixel,
+    pixel_svg,
+)
+from ..utils.sql import like_escape
 from ..utils.uploads import (
+    absolute_base,
+    absolute_upload_url,
     delete_upload,
+    floppy_kind,
     floppy_store_ext,
     save_upload,
     validate_floppy_data,
@@ -27,9 +38,29 @@ from ..utils.youtube import youtube_embed_info
 
 router = APIRouter(prefix="/api", tags=["posts"])
 
+_last_bot_trigger_time = 0.0
+_BOT_TRIGGER_INTERVAL = 30.0  # 30秒に1回までバックグラウンドで自動投稿/返信をチェック
 
-def like_escape(value: str) -> str:
-    return re.sub(r"([\\%_])", r"\\\1", value)
+def maybe_trigger_bot_background() -> None:
+    global _last_bot_trigger_time
+    now = time.monotonic()
+    if now - _last_bot_trigger_time < _BOT_TRIGGER_INTERVAL:
+        return
+    _last_bot_trigger_time = now
+
+    root_dir = Path(__file__).resolve().parent.parent.parent
+    bot_script = root_dir / "tools" / "bot.py"
+    if bot_script.exists():
+        try:
+            subprocess.Popen(
+                [sys.executable, str(bot_script), "auto"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        except Exception:
+            pass
+
 
 
 # 埋め込みカード用: 本文中の URL をリンクにする（HTML は必ずエスケープする）
@@ -97,6 +128,7 @@ def list_posts(
     feed: str = "",
     disk: str = "",
 ) -> dict:
+    maybe_trigger_bot_background()
     username = username.strip()
     keyword = q.strip()
     disk_slug = disk.strip().lower()
@@ -151,6 +183,7 @@ def list_posts(
 @router.post("/posts", status_code=status.HTTP_201_CREATED)
 async def create_post(request: Request) -> dict:
     user = require_user(request)
+    maybe_trigger_bot_background()
 
     content_type = request.headers.get("content-type", "")
     is_multipart = content_type.startswith("multipart/form-data")

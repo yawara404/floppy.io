@@ -1,0 +1,44 @@
+[
+  {
+    "name": "01_hero",
+    "start": 3.174,
+    "duration": 11.385,
+    "source": "/Users/it262148/floppy_io/docs/video/hl2026/raw/page@ae9e85c62df91ab589496c6fb3194273.webm"
+  },
+  {
+    "name": "02_pixel_post",
+    "start": 2.686,
+    "duration": 10.708,
+    "source": "/Users/it262148/floppy_io/docs/video/hl2026/raw/page@4f58e5fe7bf260e353a3fcd382169743.webm"
+  },
+  {
+    "name": "03_share_preview",
+    "start": 1.791,
+    "duration": 11.03,
+    "source": "/Users/it262148/floppy_io/docs/video/hl2026/raw/page@b35f4e5617b2f75ca85665c4fe07f822.webm"
+  },
+  {
+    "name": "04_disks",
+    "start": 3.456,
+    "duration": 12.192,
+    "source": "/Users/it262148/floppy_io/docs/video/hl2026/raw/page@8af540128b24d2ce92ba8cabbf72f04b.webm"
+  },
+  {
+    "name": "05_draw_floppy",
+    "start": 3.335,
+    "duration": 14.463999999999999,
+    "source": "/Users/it262148/floppy_io/docs/video/hl2026/raw/page@b997e0a11e2f6c45d0437d3f51452252.webm"
+  },
+  {
+    "name": "06_text_and_aa",
+    "start": 2.715,
+    "duration": 12.808,
+    "source": "/Users/it262148/floppy_io/docs/video/hl2026/raw/page@ab3e6c44a33583d13e563c35b6448a00.webm"
+  },
+  {
+    "name": "07_capacity_meter",
+    "start": 1.988,
+    "duration": 12.402000000000001,
+    "source": "/Users/it262148/floppy_io/docs/video/hl2026/raw/page@c0e064641b20b60d8d2fde7b3f3b453d.webm"
+  }
+]

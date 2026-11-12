@@ -1,12 +1,12 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
-import { drawPixel, FLOPPY_AVATAR } from '~/utils/pixel'
+import { drawAvatar } from '~/utils/pixel'
 import { resolveMediaUrl } from '~/utils/api'
 
 const props = defineProps({ user: { type: Object, required: true } })
 const canvas = ref(null)
 const failed = ref(false)
-function render() { if (canvas.value) drawPixel(canvas.value, props.user.icon_pixel || FLOPPY_AVATAR) }
+function render() { if (canvas.value) drawAvatar(canvas.value, props.user.icon_pixel) }
 onMounted(render)
 watch(() => [props.user.icon_pixel, failed.value], render, { flush: 'post' })
 </script>

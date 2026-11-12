@@ -131,6 +131,8 @@ floppy_io/
 │   │   │   └── uploads.py          # /uploads/<name> の配信
 │   │   └── utils/
 │   │       ├── pixels.py           # ドット絵 (16×16 / 32×32 / 32×24 / 32×32 アイコン)
+│   │       ├── avatars.py          # ユーザーアイコン URL の共通組み立て
+│   │       ├── sql.py              # LIKE エスケープ
 │   │       ├── images.py           # 画像の MIME / 寸法判定
 │   │       ├── uploads.py          # ファイル保存 / URL
 │   │       └── youtube.py          # YouTube Data API v3 連携
@@ -151,15 +153,19 @@ floppy_io/
 │   │   │   ├── d/[slug].vue        # /d/:slug (ディスク個別)
 │   │   │   ├── following.vue       # /following（フォロー中タイムライン）
 │   │   │   ├── search.vue          # /search
-│   │   │   ├── u/[username].vue    # /u/:username
+│   │   │   ├── u/[username]/       # /u/:username (+ /following, /followers)
 │   │   │   ├── p/[id].vue          # /p/:id
 │   │   │   ├── login.vue / register.vue
 │   │   │   └── settings.vue / help.vue
-│   │   ├── components/             # Composer / PostItem / DiskGauge など
+│   │   ├── components/             # Composer / PostItem / YouTubeEmbed など
 │   │   ├── views/                  # 画面本体 (Home / Disks / Disk / Profile ...)
-│   │   ├── composables/            # useAuth (ログイン) / usePostShare (共有)
+│   │   ├── composables/            # useAuth / usePostShare / useAvatarImage /
+│   │   │                           # useAvatarCanvas / useDialog
 │   │   ├── utils/api.js            # API クライアント
-│   │   ├── utils/pixel.js          # ドット絵のパース/描画
+│   │   ├── utils/pixel.js          # ドット絵のパース/描画・初期アイコン
+│   │   ├── utils/format.js         # 数値・日時の表示整形
+│   │   ├── utils/post.js           # 投稿の種類 / ドット絵 / サムネイル判定
+│   │   ├── utils/env.js            # IP アドレス判定 / localhost URL
 │   │   └── assets/css/main.css     # RETRO BBS デザインシステム
 │   ├── public/
 │   │   ├── config.js               # 実行時 API 接続先
@@ -379,7 +385,8 @@ launchctl list | grep com.floppy.public     # 動いているか確認
 | `/d/:slug` | ディスク個別（説明・参加・専用の投稿フォーム・書き込み一覧） |
 | `/following` | フォロー中タイムライン（自分＋フォロー中ユーザーの投稿・要ログイン） |
 | `/search?q=...` | 検索（入力中にユーザー / ディスク / 投稿のサジェスト、本文・ユーザー名・表示名の部分一致） |
-| `/u/:username` | プロフィール（自分・他ユーザーどちらも） |
+| `/u/:username` | プロフィール（投稿タブと、本人だけに表示する非公開のいいね履歴） |
+| `/u/:username/following` / `/u/:username/followers` | フォロー中・フォロワーの独立した専用一覧（一覧内のタブはなし・投稿へ戻るリンクあり） |
 | `/p/:id` | 投稿の個別ビュー（旧 Twitter / mixi 風）＋返信（投稿者が許可したときだけ） |
 | `/settings` | 設定（表示名 / bio / 32×32 アイコン / 返信の可否 / パスワード変更 / ログアウト） |
 | `/help` | ヘルプ |
@@ -401,7 +408,7 @@ Apache 用の `.htaccess` にもリライトを同梱しています。
   別オリジン（静的配信サーバーなど）からでもそのまま動きます。
 - プロフィールアイコンは **設定 → プロフィールアイコン（32×32 ドット絵）** で描くか、
   **設定 → プロフィール画像** から画像に変更できます。表示の優先順位は
-  **32×32 アイコン → プロフィール画像 → 最新投稿のドット絵 → フロッピーの絵** です。
+  **32×32 アイコン → プロフィール画像 → 最新投稿のドット絵 → 初期アイコン** です。
 - 自分のプロフィール画面（`/u/:username`）の **「プロフィールを編集」** からも、
   表示名 / bio / プロフィール画像 / 32×32 アイコンをその場で編集できます
   （保存するとプロフィール表示とサイドバーが更新されます）。
@@ -420,7 +427,11 @@ Apache 用の `.htaccess` にもリライトを同梱しています。
 - 1 マス = 1 桁の 16 進文字（0-9A-F、16 色）で `users.icon_pixel` に
   **1024 文字**として保存します。全消去（全透明）で保存すると未設定に戻ります。
 - 設定するとプロフィール画像より優先されます。未設定のときは
-  「プロフィール画像 → 最新投稿のドット絵 → フロッピーの絵」の順に使われます。
+  「プロフィール画像 → 最新投稿のドット絵 → 初期アイコン」の順に使われます。
+- 初期アイコンはサイトのロゴと同じ配色（深緑 × クリーム × 紙）のフロッピーです。
+  `/api/icon/:username.svg` は未設定でも **404 にせずこの SVG を返す**ため、
+  投稿カードやフォロー一覧が文字だけのフォールバックになることはありません。
+  画面側（`drawDefaultAvatar`）も同じ絵を canvas に描きます。
 - 画像ファイルと同様、投稿の容量制限（1 投稿 1.44MB）とは別枠です。
 
 ## 返信（リプライ）
@@ -462,6 +473,7 @@ Apache 用の `.htaccess` にもリライトを同梱しています。
 | `POST` | `/api/update_reply_setting` | 返信の受け付けオン / オフ `{ allow_replies }`（要ログイン） |
 | `POST` | `/api/change_password` | パスワード変更（要ログイン） |
 | `GET`  | `/api/user?username=floppy` | プロフィール＋その人の投稿 |
+| `GET`  | `/api/icon/:username.svg` | 投稿カード用アバター（32×32 アイコン → プロフィール画像へ 302 → 最新の正方形ドット絵 → 初期アイコン。未設定でも 200） |
 | `GET`  | `/api/search/suggest?q=flo` | 検索サジェスト（ユーザー最大5 / ディスク最大5 / 投稿最大3） |
 | `GET`  | `/api/posts[?username=floppy][&q=キーワード][&disk=retro-pc]` | 投稿一覧（新しい順 / 検索 / ディスク絞り込み） |
 | `GET`  | `/api/posts?feed=following` | フォロー中タイムライン＝自分＋フォロー中ユーザーの投稿（要ログイン） |
@@ -474,6 +486,7 @@ Apache 用の `.htaccess` にもリライトを同梱しています。
 | `POST` | `/api/delete_post` | 自分の投稿を削除 `{ id }`（要ログイン） |
 | `POST` | `/api/like` | いいねの付け外し `{ id }`（要ログイン・トグル） |
 | `POST` | `/api/follow` | フォローの付け外し `{ username }` または `{ id }`（要ログイン・トグル） |
+| `GET` | `/api/users/:username/likes?offset=0` | 本人専用のいいね履歴。認証必須・所有者一致必須・private, no-store。50 件ずつ取得 |
 | `GET` | `/api/users/:username/connections/:kind?offset=0` | 公開フォロー一覧。kind は following / followers。50 件ずつ、users と next_offset を返す |
 | `GET`  | `/api/disk_usage[?username=floppy]` | 1 投稿あたりの上限 / 合計（参考値） |
 | `GET`  | `/api/preview?id=123` | 埋め込み用プレビュー（メタ情報＋HTML スニペット） |
@@ -620,14 +633,22 @@ mysql -u root -p < database/migrations/2026-11-06-disks.sql
 - `likes` テーブルに保存し、投稿が削除されると連動して消えます
   （1 ユーザー 1 投稿につき 1 件）。
 
+### いいね履歴（本人専用）
+
+- プロフィールは「投稿」タブが既定で、その横に「いいね履歴（非公開）」を本人にだけ表示します。
+- `?tab=likes` で開き、いいねした日時の新しい順に 50 件ずつ取得します。解除した投稿は履歴から消えます。
+- 履歴の一覧・件数は公開プロフィール API に含めません。未ログインは 401、他人の履歴は 403 を返します。
+- 履歴 API は `Cache-Control: private, no-store`。ログアウト・プロフィール移動時は画面の履歴を破棄します。
+- 投稿のいいね合計件数は従来どおり公開されます。誰がいいねしたかを公開する一覧はありません。
+
 ## フォロー
 
 - プロフィールの「フォローする」を押すと**フォローの付け外し（トグル）**ができます。
   フォロー中はボタンが「フォロー中」に変わります（自分自身にはボタンを出しません）。
 - 投稿・プロフィールに**フォロー数 / フォロワー数**を表示します。
-- プロフィールと左サイドバーの「フォロー中」「フォロワー」をクリックすると一覧が開きます。
+- プロフィールと左サイドバーの「フォロー中」「フォロワー」をクリックすると専用のユーザー一覧へ移動します。
   一覧は未ログインでも閲覧でき、相手のプロフィールへ移動できます。ログイン中は一覧内で
-  フォローの付け外しも可能です。50 件ずつ追加表示し、URL の `connections` で開く一覧を保持します。
+  フォローの付け外しも可能です。50 件ずつ追加表示し、Twitter と同じく `/u/:username/following`（フォロー中）と `/u/:username/followers`（フォロワー）を独立した画面として表示します。一覧の中にタブは置かず、プロフィールの件数リンクで行き来し、一覧からは「投稿へ戻る」でプロフィールへ戻ります。旧 `tab` / `connections` の一覧リンクも専用画面へ転送します。
 - `follows` テーブル（`follower_id` → `followee_id`）に保存し、どちらかのユーザーが
   消えると連動して消えます（1 組 1 件・自分自身は登録できません）。
 - ホームの「フォロー中」タブ（`/following`）は**自分＋フォロー中ユーザーの投稿**を

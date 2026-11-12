@@ -47,6 +47,10 @@ export default defineNuxtConfig({
 
       meta: [
         {
+          name: 'google-site-verification',
+          content: 'QEND1wFNaZp1AQkewXw8BQcRELQNfWwU_W_G9aUs5XQ',
+        },
+        {
           name: 'description',
           content:
             '1 投稿あたり 1.44MB。ドット絵・画像・YouTube・8bit 曲をフロッピーディスク 1 枚に収めて投稿する、レトロコンピューティング趣味のミニマル SNS。',
@@ -82,6 +86,10 @@ export default defineNuxtConfig({
 
         { name: 'theme-color', content: '#cfe9d8' },
         { name: 'color-scheme', content: 'light' },
+        { name: 'mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-title', content: 'floppy.io' },
+        { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
 
         { name: 'twitter:card', content: 'summary_large_image' },
         {
@@ -104,6 +112,7 @@ export default defineNuxtConfig({
       ],
 
       link: [
+        { rel: 'manifest', href: publicPath('manifest.webmanifest') },
         { rel: 'icon', type: 'image/svg+xml', href: publicPath('favicon.svg') },
         {
           rel: 'icon',

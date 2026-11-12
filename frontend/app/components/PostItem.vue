@@ -1,7 +1,11 @@
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { drawPixelContained } from '~/utils/pixel'
+import { ref, computed, watch, nextTick } from 'vue'
+import { useAvatarCanvas } from '~/composables/useAvatarCanvas'
+import { formatDateTime } from '~/utils/format'
+import { hasPixelArt, postKindOf } from '~/utils/post'
+import { useAvatarImage } from '~/composables/useAvatarImage'
 import ReplyForm from './ReplyForm.vue'
+import YouTubeEmbed from './YouTubeEmbed.vue'
 import { isLoggedIn } from '~/composables/useAuth'
 import { resolveMediaUrl } from '~/utils/api'
 
@@ -10,11 +14,10 @@ const props = defineProps({
   canDelete: { type: Boolean, default: false },
 })
 
-defineEmits(['delete', 'share'])
+defineEmits(['delete', 'share', 'like'])
 
 const router = useRouter()
-const canvas = ref(null)
-const playing = ref(false)
+const { canvas, draw: drawAvatar } = useAvatarCanvas(() => props.post)
 const menuOpen = ref(false)
 const confirming = ref(false)
 const replying = ref(false)
@@ -67,110 +70,32 @@ function onReplied() {
 }
 
 // ドット絵が描かれていない投稿ではキャンバスを出さない
-const hasPixel = computed(() => /[1-9A-Fa-f]/.test(props.post.pixel_data || ''))
+const hasPixel = computed(() => hasPixelArt(props.post))
 
 // 投稿者のアイコン（プロフィール画像 / 32×32 アイコン / 最新の正方形ドット絵）。
-// 読み込めない場合は投稿のドット絵 → [F] の順にフォールバックする。
-const avatarError = ref(false)
-const avatarImage = computed(() => {
-  if (avatarError.value) return ''
-  return resolveMediaUrl(
-    props.post.author_icon_url || props.post.author_avatar_url || '',
-  )
-})
-
-function drawAvatar() {
-  if (!canvas.value || !hasPixel.value) return
-  drawPixelContained(
-    canvas.value,
-    props.post.pixel_data,
-    props.post.pixel_width,
-    props.post.pixel_height,
-  )
-}
+// 読み込めない場合は投稿のドット絵 → 初期アイコン（フロッピー）の順に描く。
+const {
+  image: avatarImage,
+  reset: resetAvatar,
+  onError: markAvatarError,
+} = useAvatarImage(() => props.post)
 
 function onAvatarError() {
-  avatarError.value = true
+  markAvatarError()
   nextTick(drawAvatar)
 }
 
 // 投稿の種類ラベル（計器表示用）
-const postKind = computed(() => {
-  const post = props.post
-  if (post.youtube_id) return 'YOUTUBE'
-  if (post.image_url) return 'IMAGE'
-  if (post.floppy_url) return post.floppy_kind === 'audio' ? 'AUDIO' : 'FILE'
-  if (hasPixel.value) return 'PIXEL'
-  return 'TEXT'
-})
+const postKind = computed(() => postKindOf(props.post))
 
-// YouTube 埋め込み
-const youtubeThumb = computed(() => {
-  if (props.post.youtube_thumbnail) return props.post.youtube_thumbnail
-  return props.post.youtube_id
-    ? `https://i.ytimg.com/vi/${props.post.youtube_id}/hqdefault.jpg`
-    : ''
-})
-
-const youtubeWatchUrl = computed(() =>
-  props.post.youtube_id
-    ? `https://www.youtube.com/watch?v=${props.post.youtube_id}`
-    : '',
-)
-
-const youtubeEmbedUrl = computed(() => {
-  if (!props.post.youtube_id) return ''
-
-  const params = new URLSearchParams({
-    autoplay: '1',
-    rel: '0',
-    // iOS Safari で全画面に飛ばさずインライン再生させる
-    playsinline: '1',
-  })
-
-  // Referer が無いと YouTube がエラー 153 (プレーヤー設定エラー) を返すため、
-  // 埋め込み元のオリジンを明示する
-  if (typeof window !== 'undefined' && window.location.origin) {
-    params.set('origin', window.location.origin)
-  }
-
-  return `https://www.youtube.com/embed/${props.post.youtube_id}?${params}`
-})
-
-// YouTube は IP アドレス (127.0.0.1 など) からの埋め込みを拒否するため、
-// その場合は localhost で開き直す案内を出す
-const isIpHost = computed(
-  () =>
-    typeof window !== 'undefined' &&
-    /^\d{1,3}(\.\d{1,3}){3}$/.test(window.location.hostname),
-)
-
-const localhostUrl = computed(() => {
-  if (typeof window === 'undefined') return '#'
-  const { protocol, port, pathname, search, hash } = window.location
-  return `${protocol}//localhost${port ? ':' + port : ''}${pathname}${search}${hash}`
-})
-
-onMounted(drawAvatar)
-
-// 別の投稿に切り替わったとき / アイコンURLが変わったときは再評価する
+// 別の投稿に切り替わったとき / アイコンURLが変わったときは画像を再評価する
 watch(
   () => [props.post.id, props.post.author_icon_url, props.post.author_avatar_url],
   async () => {
-    avatarError.value = false
+    resetAvatar()
     await nextTick()
-    drawAvatar()
   },
 )
-
-function fmtDate(s) {
-  if (!s) return ''
-  // MySQL の "YYYY-MM-DD HH:MM:SS" を Date に変換
-  const d = new Date(String(s).replace(' ', 'T'))
-  if (Number.isNaN(d.getTime())) return String(s)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
 </script>
 
 <template>
@@ -185,13 +110,12 @@ function fmtDate(s) {
         @error="onAvatarError"
       />
       <canvas
-        v-else-if="hasPixel"
+        v-else
         ref="canvas"
         class="post-pixel"
         width="16"
         height="16"
       ></canvas>
-      <span v-else class="post-avatar-fallback" aria-hidden="true">[F]</span>
     </div>
 
     <div class="post-body">
@@ -222,7 +146,7 @@ function fmtDate(s) {
           :aria-label="'投稿 No.' + post.id + ' を開く'"
         >No.{{ post.id }}</NuxtLink>
         <span class="post-dot">/</span>
-        <span class="post-date">{{ fmtDate(post.created_at) }}</span>
+        <span class="post-date">{{ formatDateTime(post.created_at) }}</span>
         <span class="post-dot">/</span>
         <span class="post-kind">{{ postKind }}</span>
         <template v-if="post.disk">
@@ -243,47 +167,12 @@ function fmtDate(s) {
       <NuxtLink v-if="hasExcerpt" class="post-read-more" :to="`/p/${post.id}`">続きを読む →</NuxtLink>
 
       <!-- YouTube 埋め込み（クリックするまで iframe を読み込まない） -->
-      <div v-if="post.youtube_id" class="youtube-embed">
-        <div class="youtube-frame">
-          <iframe
-            v-if="playing"
-            :src="youtubeEmbedUrl"
-            title="YouTube 動画プレーヤー"
-            referrerpolicy="strict-origin-when-cross-origin"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowfullscreen
-          ></iframe>
-          <button
-            v-else
-            type="button"
-            class="youtube-thumb"
-            aria-label="YouTube を再生"
-            @click="playing = true"
-          >
-            <img :src="youtubeThumb" alt="" loading="lazy" />
-            <span class="youtube-play" aria-hidden="true">▶</span>
-          </button>
-        </div>
-
-        <div class="youtube-meta">
-          <span class="youtube-title">
-            ▶ {{ post.youtube_title || 'YouTube 動画' }}
-          </span>
-          <a
-            class="youtube-open"
-            :href="youtubeWatchUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            YouTube で見る ↗
-          </a>
-        </div>
-
-        <p v-if="isIpHost" class="youtube-hint">
-          このページは IP アドレスで開かれているため、YouTube を埋め込み再生できません。
-          <a :href="localhostUrl">localhost で開き直す</a>
-        </p>
-      </div>
+      <YouTubeEmbed
+        v-if="post.youtube_id"
+        :video-id="post.youtube_id"
+        :title="post.youtube_title"
+        :thumbnail="post.youtube_thumbnail"
+      />
 
       <a
         v-if="post.image_url"

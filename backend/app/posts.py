@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import hashlib
 from typing import Any
-from urllib.parse import quote
 
 from .db import fetch_all, fetch_one
-from .utils.pixels import normalize_icon_pixel
-from .utils.uploads import floppy_kind, public_base_path, upload_url
+from .utils.avatars import icon_url
+from .utils.uploads import floppy_kind, upload_url
 
 POST_COLUMNS = """p.id,
   p.user_id,
@@ -53,17 +51,8 @@ def with_media(row: dict[str, Any] | None) -> dict[str, Any] | None:
     # 投稿者のアイコン URL。プロフィールの 32×32 アイコン → アップロード画像 →
     # 最新の正方形ドット絵、の順で /api/icon/<username>.svg が解決する。
     result["author_avatar_url"] = upload_url(row.get("avatar_path"))
-    icon = normalize_icon_pixel(row.get("icon_pixel"))
-    avatar_path = str(row.get("avatar_path") or "")
-    seed = f"{icon}|{avatar_path}"
-    version = (
-        hashlib.sha1(seed.encode("utf-8")).hexdigest()[:8]
-        if icon or avatar_path
-        else ""
-    )
-    result["author_icon_url"] = (
-        f"{public_base_path()}api/icon/{quote(str(row['username']))}.svg"
-        + (f"?v={version}" if version else "")
+    result["author_icon_url"] = icon_url(
+        row["username"], row.get("icon_pixel"), row.get("avatar_path")
     )
     result.pop("avatar_path", None)
     result.pop("icon_pixel", None)

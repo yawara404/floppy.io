@@ -6,15 +6,12 @@
 
 from __future__ import annotations
 
-import hashlib
-import re
-from urllib.parse import quote
-
 from fastapi import APIRouter
 
 from ..db import fetch_all
-from ..utils.pixels import normalize_icon_pixel
-from ..utils.uploads import public_base_path, upload_url
+from ..utils.avatars import icon_url
+from ..utils.sql import like_escape
+from ..utils.uploads import upload_url
 
 router = APIRouter(prefix="/api", tags=["search"])
 
@@ -25,22 +22,10 @@ LIMIT_POSTS = 3
 POST_EXCERPT_CHARS = 120
 
 
-def like_escape(value: str) -> str:
-    return re.sub(r"([\\%_])", r"\\\1", value)
+def user_icon(row: dict) -> str:
+    """検索結果のユーザーアイコン URL（投稿カードと同じ組み立て）"""
+    return icon_url(row["username"], row.get("icon_pixel"), row.get("avatar_path"))
 
-
-def icon_url(row: dict) -> str:
-    icon = normalize_icon_pixel(row.get("icon_pixel"))
-    avatar_path = str(row.get("avatar_path") or "")
-    version = (
-        hashlib.sha1(f"{icon}|{avatar_path}".encode("utf-8")).hexdigest()[:8]
-        if icon or avatar_path
-        else ""
-    )
-    return (
-        f"{public_base_path()}api/icon/{quote(str(row['username']))}.svg"
-        + (f"?v={version}" if version else "")
-    )
 
 
 @router.get("/search/suggest")
@@ -73,7 +58,7 @@ def search_suggest(q: str = "") -> dict:
             "username": row["username"],
             "display_name": row["display_name"] or row["username"],
             "avatar_url": upload_url(row.get("avatar_path")),
-            "icon_url": icon_url(row),
+            "icon_url": user_icon(row),
         }
         for row in user_rows
     ]

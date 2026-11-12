@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, onMounted, watch } from 'vue'
-import { drawPixel, FLOPPY_AVATAR } from '~/utils/pixel'
+import { drawAvatar } from '~/utils/pixel'
+import { formatNumber } from '~/utils/format'
 import { resolveMediaUrl } from '~/utils/api'
 
 const props = defineProps({
@@ -21,14 +22,10 @@ const capacityPercent = computed(() => {
 // 32×32 アイコン → プロフィール画像 → 最新投稿のドット絵 の順に使う
 function render() {
   if (!canvas.value) return
-  drawPixel(
+  drawAvatar(
     canvas.value,
-    props.user?.icon_pixel || props.user?.avatar_pixel || FLOPPY_AVATAR,
+    props.user?.icon_pixel || props.user?.avatar_pixel,
   )
-}
-
-function fmt(n) {
-  return (n || 0).toLocaleString('ja-JP')
 }
 
 onMounted(render)
@@ -72,24 +69,24 @@ watch(
     <p v-if="user.bio" class="profile-bio">{{ user.bio }}</p>
 
     <div class="profile-stats">
-      <div class="stat">
-        <b>{{ fmt(user.post_count) }}</b>
+      <NuxtLink class="stat stat-link" :to="'/u/' + user.username">
+        <b>{{ formatNumber(user.post_count) }}</b>
         <span>投稿</span>
-      </div>
-      <NuxtLink class="stat stat-link" :to="{ path: '/u/' + user.username, query: { connections: 'following' } }">
-        <b>{{ fmt(user.following_count) }}</b>
+      </NuxtLink>
+      <NuxtLink class="stat stat-link" :to="'/u/' + user.username + '/following'">
+        <b>{{ formatNumber(user.following_count) }}</b>
         <span>フォロー中</span>
       </NuxtLink>
-      <NuxtLink class="stat stat-link" :to="{ path: '/u/' + user.username, query: { connections: 'followers' } }">
-        <b>{{ fmt(user.follower_count) }}</b>
+      <NuxtLink class="stat stat-link" :to="'/u/' + user.username + '/followers'">
+        <b>{{ formatNumber(user.follower_count) }}</b>
         <span>フォロワー</span>
       </NuxtLink>
       <div class="stat">
-        <b>{{ fmt(user.total_bytes) }}</b>
+        <b>{{ formatNumber(user.total_bytes) }}</b>
         <span>合計バイト</span>
       </div>
       <div class="stat">
-        <b>{{ fmt(user.largest_post_bytes) }}</b>
+        <b>{{ formatNumber(user.largest_post_bytes) }}</b>
         <span>最大</span>
       </div>
     </div>
@@ -97,7 +94,7 @@ watch(
     <div class="profile-disk">
       <div class="profile-disk-head">
         <span>LARGEST WRITE</span>
-        <b>{{ fmt(user.largest_post_bytes) }} B / 1.44 MB</b>
+        <b>{{ formatNumber(user.largest_post_bytes) }} B / 1.44 MB</b>
       </div>
       <div class="mini-track">
         <span :style="{ width: capacityPercent + '%' }"></span>

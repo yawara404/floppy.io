@@ -5,6 +5,7 @@ import Composer from '../components/Composer.vue'
 import PostList from '../components/PostList.vue'
 import { apiGet, apiPost } from '~/utils/api'
 import { isLoggedIn } from '~/composables/useAuth'
+import { formatDate } from '~/utils/format'
 
 const props = defineProps({
   slug: { type: String, required: true },
@@ -22,15 +23,7 @@ const canWrite = computed(
   () => isLoggedIn.value && disk.value?.is_member === true,
 )
 
-function fmtDate(value) {
-  if (!value) return ''
-  const date = new Date(String(value).replace(' ', 'T'))
-  if (Number.isNaN(date.getTime())) return ''
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`
-}
-
-const lastPostLabel = computed(() => fmtDate(disk.value?.last_post_at))
+const lastPostLabel = computed(() => formatDate(disk.value?.last_post_at))
 
 async function load() {
   const sequence = ++loadSequence

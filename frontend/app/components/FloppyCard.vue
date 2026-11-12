@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { drawPixelContained, FLOPPY_AVATAR } from '~/utils/pixel'
+import { drawPixelContained, drawDefaultAvatar } from '~/utils/pixel'
+import { hasPixelArt } from '~/utils/post'
 import { resolveMediaUrl } from '~/utils/api'
 
 const props = defineProps({
@@ -31,10 +32,10 @@ function render() {
 
   // ドット絵が無い投稿（画像・YouTube・フロッピー添付のみ等）は
   // 空白のままになるため、フロッピーアイコンを表示する
-  const blank = !/[1-9A-Fa-f]/.test(pixel)
+  const blank = !hasPixelArt(props.post)
 
   if (blank) {
-    drawPixelContained(canvas.value, FLOPPY_AVATAR)
+    drawDefaultAvatar(canvas.value)
   } else {
     drawPixelContained(
       canvas.value,

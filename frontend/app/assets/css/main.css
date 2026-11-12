@@ -2087,8 +2087,7 @@ textarea.input {
 }
 
 .post-pixel,
-.post-avatar-image,
-.post-avatar-fallback {
+.post-avatar-image {
   display: block;
   width: 44px;
   height: 44px;
@@ -2100,15 +2099,6 @@ textarea.input {
 
 .post-avatar-image {
   object-fit: cover;
-}
-
-.post-avatar-fallback {
-  display: grid;
-  place-items: center;
-  background: var(--paper-2);
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: 12px;
 }
 
 .post-body {
@@ -5325,8 +5315,7 @@ a {
   }
 
   .post-avatar,
-  .post-pixel,
-  .post-avatar-fallback {
+  .post-pixel {
     width: 38px;
     height: 38px;
   }
@@ -5591,8 +5580,7 @@ a {
   }
 
   .post-avatar,
-  .post-pixel,
-  .post-avatar-fallback {
+  .post-pixel {
     width: 34px;
     height: 34px;
   }

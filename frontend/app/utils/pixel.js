@@ -78,26 +78,68 @@ export function toPixelData(grid) {
   return grid.map((i) => i.toString(16).toUpperCase()).join('')
 }
 
-// プロフィールアイコン用のフロッピーディスク・ドット絵 (16×16 = 256 文字)
-// 3=黒(本体) / 2=グレー(シャッター枠) / 1=ライトグレー(金属シャッター) / 0=白(ラベル)
-export const FLOPPY_AVATAR = [
-  '3333333333333333',
-  '3222222222222223',
-  '3211111111111123',
-  '3211111111111123',
-  '3211000000001123',
-  '3211000000001123',
-  '3211111111111123',
-  '3222222222222223',
-  '3222222222222223',
-  '3000000000000003',
-  '3000000000000003',
-  '3000000000000003',
-  '3000000000000003',
-  '3000000000000003',
-  '3000000000000003',
-  '3333333333333333',
-].join('')
+// 初期アイコン（アイコン未設定のユーザー共通）。
+// サイトのロゴと同じ配色で、深緑の輪郭・クリームの本体・紙のラベル。
+// 透明（.）は背景を塗らず、置かれる枠の地色を活かす。
+export const DEFAULT_AVATAR_COLORS = {
+  D: '#174d35', // 深緑（輪郭）
+  C: '#e8e4d2', // クリーム（本体）
+  G: '#a9b3aa', // グレー（シャッター）
+  K: '#30363a', // 濃灰（シャッターの影）
+  P: '#fffdf1', // 紙（ラベル）
+  E: '#d4cfba', // ラベルの縁・罫線
+  L: '#1d6540', // 緑の罫線
+}
+
+export const DEFAULT_AVATAR_ROWS = [
+  '................',
+  '.DDDDDDDDDDDDDD.',
+  '.DCCCCCCCCCCCCD.',
+  '.DCCCGGGGGGCCCD.',
+  '.DCCCGGGGGGCCCD.',
+  '.DCCCGGGGGGCCCD.',
+  '.DCCCKKKKKKCCCD.',
+  '.DCCCCCCCCCCCCD.',
+  '.DCCEEEEEEEECCD.',
+  '.DCCPPPPPPPPCCD.',
+  '.DCCLLLLPPPPCCD.',
+  '.DCCPPPPPPPPCCD.',
+  '.DCCEEEEEPPPCCD.',
+  '.DCCPPPPPPPPCCD.',
+  '.DDDDDDDDDDDDDD.',
+  '................',
+]
+
+/** 初期アイコンを描く（16×16・背景は透明） */
+export function drawDefaultAvatar(canvas) {
+  if (!canvas) return
+  const ctx = canvas.getContext('2d')
+  const size = DEFAULT_AVATAR_ROWS.length
+  canvas.width = size
+  canvas.height = size
+  ctx.clearRect(0, 0, size, size)
+  DEFAULT_AVATAR_ROWS.forEach((row, y) => {
+    row.split('').forEach((ch, x) => {
+      const color = DEFAULT_AVATAR_COLORS[ch]
+      if (!color) return
+      ctx.fillStyle = color
+      ctx.fillRect(x, y, 1, 1)
+    })
+  })
+}
+
+/** アイコン用の描画。未設定（空・全透明）なら初期アイコンにする */
+export function drawAvatar(canvas, data) {
+  if (pixelIsBlank(data)) return drawDefaultAvatar(canvas)
+  drawPixel(canvas, data)
+}
+
+/** アイコン用の描画（縦横比を保つ）。未設定なら初期アイコンにする */
+export function drawAvatarContained(canvas, data, width, height) {
+  if (pixelIsBlank(data)) return drawDefaultAvatar(canvas)
+  drawPixelContained(canvas, data, width, height)
+}
+
 
 /**
  * 指定した canvas に pixel_data を描画する。

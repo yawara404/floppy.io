@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { formatNumber } from '~/utils/format'
 
 const props = defineProps({
   used: { type: Number, default: 0 },
@@ -12,10 +13,6 @@ const ratio = computed(() => (props.limit > 0 ? props.used / props.limit : 0))
 const barPercent = computed(() => Math.min(100, ratio.value * 100))
 const percentLabel = computed(() => (ratio.value * 100).toFixed(2))
 const over = computed(() => props.used > props.limit)
-
-function fmt(n) {
-  return n.toLocaleString('ja-JP')
-}
 </script>
 
 <template>
@@ -25,7 +22,7 @@ function fmt(n) {
         <span class="pulse-dot"></span>{{ label }}
       </span>
       <span class="gauge-readout">
-        {{ fmt(used) }} <i>/</i> {{ fmt(limit) }} bytes
+        {{ formatNumber(used) }} <i>/</i> {{ formatNumber(limit) }} bytes
       </span>
     </div>
 
@@ -48,7 +45,7 @@ function fmt(n) {
     <div class="gauge-stats" :class="{ 'gauge-over': over }">
       <span>使用率 <b class="gauge-percent">{{ percentLabel }}%</b></span>
       <span v-if="over">
-        [!] 上限を {{ fmt(used - limit) }} bytes 超えています
+        [!] 上限を {{ formatNumber(used - limit) }} bytes 超えています
       </span>
     </div>
   </div>

@@ -14,10 +14,11 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['changed'])
+const emit = defineEmits(['changed', 'like-changed'])
 
 const error = ref('')
 const sharePost = ref(null)
+const liking = new Set()
 let lastFocused = null
 
 function openShare(post) {
@@ -45,6 +46,7 @@ async function removePost(post) {
 }
 
 async function toggleLike(post) {
+  if (liking.has(post.id)) return
   error.value = ''
 
   if (!isLoggedIn.value) {
@@ -52,12 +54,16 @@ async function toggleLike(post) {
     return
   }
 
+  liking.add(post.id)
   try {
     const data = await apiPost('/like', { id: post.id })
     post.liked = data.liked
     post.like_count = data.like_count
+    emit('like-changed', post)
   } catch (e) {
     error.value = e.message
+  } finally {
+    liking.delete(post.id)
   }
 }
 

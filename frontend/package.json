@@ -7,9 +7,9 @@
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "dev": "nuxt dev",
-    "build": "nuxt generate && rm -rf dist && cp -R .output/public dist",
+    "build": "npm run generate && rm -rf dist && cp -R .output/public dist",
     "build:subdir": "NUXT_APP_BASE_URL=/floppy.io/ npm run build",
-    "generate": "nuxt generate",
+    "generate": "nuxt generate && node scripts/build-pwa.mjs",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"
   },

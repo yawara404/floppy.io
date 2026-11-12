@@ -1,8 +1,9 @@
 <script setup>
 // floppy.io — 個別ビューの返信（Miiverse / mixi 風の吹き出しコメント）
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { drawPixelContained, FLOPPY_AVATAR } from '~/utils/pixel'
-import { resolveMediaUrl } from '~/utils/api'
+import { ref, onMounted, watch, nextTick } from 'vue'
+import { drawDefaultAvatar } from '~/utils/pixel'
+import { formatDateTime } from '~/utils/format'
+import { useAvatarImage } from '~/composables/useAvatarImage'
 
 const props = defineProps({
   reply: { type: Object, required: true },
@@ -12,30 +13,19 @@ const props = defineProps({
 defineEmits(['like', 'delete'])
 
 const avatar = ref(null)
-const avatarError = ref(false)
-
-const avatarImage = computed(() => {
-  if (avatarError.value) return ''
-  return resolveMediaUrl(
-    props.reply.author_icon_url || props.reply.author_avatar_url || '',
-  )
-})
+const {
+  image: avatarImage,
+  reset: resetAvatar,
+  onError: markAvatarError,
+} = useAvatarImage(() => props.reply)
 
 function drawAvatar() {
-  if (avatar.value) drawPixelContained(avatar.value, FLOPPY_AVATAR)
+  if (avatar.value) drawDefaultAvatar(avatar.value)
 }
 
 function onAvatarError() {
-  avatarError.value = true
+  markAvatarError()
   nextTick(drawAvatar)
-}
-
-function fmtDate(value) {
-  if (!value) return ''
-  const date = new Date(String(value).replace(' ', 'T'))
-  if (Number.isNaN(date.getTime())) return String(value)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 onMounted(drawAvatar)
@@ -43,7 +33,7 @@ onMounted(drawAvatar)
 watch(
   () => [props.reply.id, props.reply.author_icon_url, props.reply.author_avatar_url],
   async () => {
-    avatarError.value = false
+    resetAvatar()
     await nextTick()
     drawAvatar()
   },
@@ -80,7 +70,7 @@ watch(
           {{ reply.display_name || reply.username }}
         </NuxtLink>
         <span class="reply-bubble-handle">@{{ reply.username }}</span>
-        <time class="reply-bubble-date">{{ fmtDate(reply.created_at) }}</time>
+        <time class="reply-bubble-date">{{ formatDateTime(reply.created_at) }}</time>
       </div>
 
       <p class="reply-bubble-text">{{ reply.text }}</p>
