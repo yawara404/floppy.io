@@ -277,45 +277,51 @@ def rank_recommended(
 ) -> list[dict[str, Any]]:
     """おすすめ順に並べ替える。like_count / reply_count / is_bot が付いた投稿用。
 
-    新着度とエンゲージメントに基づきスコア順で並べる。
-    ボットが2回以上連続した場合、十分最近の人間の投稿（score > 0.05）があれば
-    クッションとして優先的に挟む。ただし何日も前の古い人間投稿を無理に
-    引っ張り出してボットの前に割り込ませることはしない。
+    人間と bot をそれぞれスコア順に並べたうえで織り込む。
+    仕様 (Wawa の指定): 人間の投稿が残っている間は、どの位置で切っても
+    bot が人間を上回らない (5割は人間)。古い人間投稿は新しさスコアが
+    ほぼ 0 になるため、スコア比較だけで挟む旧方式では bot の洪水に
+    埋もれて二度と浮上しなかった。そのため比率の保証はスコアと
+    独立に守り、スコアは人間同士・bot 同士の並び順にだけ使う。
+    並びが規則的な交互にならないよう、人間をたまに 2 件続け、
+    bot を挟むかどうかは確率で決める (上限は常に人間数)。
+    人間が尽きたら残りの bot をスコア順に続ける。
     """
     now = now or datetime.now()
-    scored = sorted(
-        posts,
-        key=lambda p: (recommended_score(p, now), int(p.get("id") or 0)),
-        reverse=True,
+
+    # スコアは 1 回だけ計算して固定する (ジッター入りなので再計算すると
+    # 比較のたびに値が変わってしまう)
+    def by_score(p: dict[str, Any]) -> tuple[float, int]:
+        return (recommended_score(p, now), int(p.get("id") or 0))
+
+    humans = sorted(
+        (p for p in posts if not p.get("is_bot")), key=by_score, reverse=True
     )
-    humans = [p for p in scored if not p.get("is_bot")]
-    bots = [p for p in scored if p.get("is_bot")]
+    bots = sorted(
+        (p for p in posts if p.get("is_bot")), key=by_score, reverse=True
+    )
+
+    if not humans:
+        return bots
+    if not bots:
+        return humans
 
     result: list[dict[str, Any]] = []
-    consecutive_bots = 0
+    h = 0  # 出した人間の数 (= humans の消費位置)
+    b = 0  # 出した bot の数 (= bots の消費位置)
 
-    while humans or bots:
-        if not humans:
-            result.extend(bots)
-            break
-        if not bots:
-            result.extend(humans)
-            break
+    while h < len(humans):
+        result.append(humans[h])
+        h += 1
+        # たまに人間をもう 1 件続けて、交互パターンに見せない
+        if h < len(humans) and random.random() < 0.35:
+            result.append(humans[h])
+            h += 1
+        # bot は「ここまでの人間数を超えない」範囲でのみ確率で挟む
+        while b < len(bots) and b < h and random.random() < 0.75:
+            result.append(bots[b])
+            b += 1
 
-        h = humans[0]
-        b = bots[0]
-        h_score = recommended_score(h, now)
-        b_score = recommended_score(b, now)
-
-        if h_score >= b_score:
-            result.append(humans.pop(0))
-            consecutive_bots = 0
-        elif consecutive_bots >= 2 and h_score > 0.05:
-            # ボットが連続し、かつ直近の人間の投稿があれば挟む
-            result.append(humans.pop(0))
-            consecutive_bots = 0
-        else:
-            result.append(bots.pop(0))
-            consecutive_bots += 1
-
+    # 人間が尽きたら、残りの bot をスコア順に続ける
+    result.extend(bots[b:])
     return result

@@ -12,6 +12,11 @@ const props = defineProps({
     type: String,
     default: 'まだ投稿がありません。最初の 1 枚を書き込んでみましょう。',
   },
+  // フッター右側の並び順ラベル。おすすめ TL では呼び出し側が RECOMMENDED を渡す
+  footLabel: {
+    type: String,
+    default: 'CHRONO / LIMIT 200',
+  },
 })
 
 const emit = defineEmits(['changed', 'like-changed'])
@@ -134,7 +139,7 @@ function canDelete(post) {
       </div>
       <div class="timeline-foot">
         <span>DAT No.001-{{ String(props.posts.length).padStart(3, '0') }}</span>
-        <span>CHRONO / LIMIT 200</span>
+        <span>{{ props.footLabel }}</span>
       </div>
     </template>
 

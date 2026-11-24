@@ -374,6 +374,7 @@ onUnmounted(() => {
         :posts="displayedPosts"
         :loading="loading"
         :empty-text="emptyText"
+        :foot-label="isRecommendedFeed ? 'RECOMMENDED / LIMIT 200' : 'CHRONO / LIMIT 200'"
         @changed="load"
       />
 

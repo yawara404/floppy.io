@@ -269,8 +269,10 @@ def list_posts(
     if where:
         sql += " WHERE " + " AND ".join(where)
 
-    # おすすめは候補を多めに取ってからスコア順に並べ替える
-    sql += " ORDER BY p.created_at DESC, p.id DESC LIMIT " + ("300" if recommended else "200")
+    # おすすめは候補を多めに取ってからスコア順に並べ替える。
+    # bot の投稿頻度が高いと直近分だけでは人間の投稿が候補から落ちるため、
+    # おすすめのときは広めに取る (投稿総数が少ない間はこれで全件が入る)
+    sql += " ORDER BY p.created_at DESC, p.id DESC LIMIT " + ("1000" if recommended else "200")
 
     rows = fetch_all(sql, tuple(params))
     me = current_user(request)
