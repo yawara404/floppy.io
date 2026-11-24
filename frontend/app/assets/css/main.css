@@ -1407,280 +1407,10 @@ textarea.input {
   font-family: var(--font-display);
 }
 
-/* ------------------------------------------------------------------
-   アスキーアートスタンプ
-   ------------------------------------------------------------------ */
 .composer-row .link-btn.active {
   border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--accent-deep);
-}
-
-.aa-panel {
-  margin-top: 10px;
-  padding: 10px;
-  border: 1px solid var(--line-strong);
-  background: var(--paper);
-  box-shadow: 3px 3px 0 var(--shadow);
-}
-
-.aa-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 7px;
-  padding-bottom: 5px;
-  border-bottom: 1px dashed var(--line);
-}
-
-.aa-title {
-  color: var(--accent-deep);
-  font-family: var(--font-mono);
-  font-size: 8px;
-  letter-spacing: 0.04em;
-}
-
-.aa-local {
-  padding: 1px 4px;
-  border: 1px solid var(--orange);
-  color: var(--orange);
-  font-family: var(--font-mono);
-  font-size: 7px;
-}
-
-.aa-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-}
-
-.aa-tab {
-  padding: 4px 7px;
-  border: 1px solid var(--line);
-  background: var(--paper-2);
-  color: var(--ink-2);
-  font-family: var(--font-display);
-  font-size: 10.5px;
-  cursor: pointer;
-}
-
-.aa-tab:hover {
-  border-color: var(--accent);
-  color: var(--accent-deep);
-}
-
-.aa-tab.active {
-  border-color: var(--accent-deep);
-  background: var(--accent);
-  color: #ffffff;
-}
-
-.aa-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
-  gap: 4px;
-  max-height: 200px;
-  margin-top: 7px;
-  overflow-y: auto;
-}
-
-.aa-stamp-wrap {
-  position: relative;
-}
-
-.aa-stamp {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  min-height: 38px;
-  padding: 4px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  background: var(--paper-2);
-  color: var(--ink);
-  text-align: center;
-  cursor: pointer;
-}
-
-.aa-stamp:hover {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-
-.aa-stamp pre {
-  max-width: 100%;
-  max-height: 50px;
-  margin: 0;
-  overflow: hidden;
-  font-family: var(--font-mono);
-  font-size: 8.5px;
-  line-height: 1.25;
-  white-space: pre;
-}
-
-.aa-delete {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  width: 16px;
-  height: 16px;
-  padding: 0;
-  border: 1px solid var(--ink);
-  background: var(--paper);
-  color: var(--danger);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.aa-delete:hover {
-  background: var(--danger);
-  border-color: var(--danger);
-  color: #ffffff;
-}
-
-.aa-empty {
-  margin: 6px 0;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: 9px;
-}
-
-.aa-editor {
-  margin-top: 8px;
-  padding-top: 7px;
-  border-top: 1px dashed var(--line);
-}
-
-.aa-input {
-  min-height: 50px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.aa-actions {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  flex-wrap: wrap;
-  margin-top: 6px;
-}
-
-.aa-notice {
-  color: var(--accent-deep);
-  font-family: var(--font-mono);
-  font-size: 8px;
-}
-
-.aa-notice.error {
-  color: var(--danger);
-}
-
-.aa-hint {
-  margin: 5px 0 0;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: 7.5px;
-}
-
-/* AA スタンプ: LINE のスタンプ一覧を参考にした検索 / よく使う / 大きめボタン */
-.aa-head-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.aa-search-row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  margin-top: 8px;
-}
-
-.aa-search {
-  min-height: 34px;
-  padding: 6px 9px;
-  font-size: 12px;
-}
-
-.aa-tabs {
-  flex-wrap: nowrap;
-  gap: 4px;
-  margin-top: 8px;
-  padding-bottom: 2px;
-  overflow-x: auto;
-}
-
-.aa-tab {
-  flex: 0 0 auto;
-  white-space: nowrap;
-}
-
-.aa-tab-count {
-  margin-left: 3px;
-  font-family: var(--font-mono);
-  font-size: 8px;
-  opacity: 0.72;
-}
-
-.aa-recent {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-  margin-top: 8px;
-  padding: 6px;
-  border: 1px dashed var(--line);
-  background: var(--paper-2);
-}
-
-.aa-recent-label {
-  margin-right: 2px;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: 8px;
-}
-
-.aa-recent-item {
-  max-width: 160px;
-  padding: 3px 6px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  background: var(--paper);
-  color: var(--ink);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  cursor: pointer;
-}
-
-.aa-recent-item:hover {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-
-.aa-grid {
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-  gap: 5px;
-  max-height: 240px;
-}
-
-.aa-stamp {
-  min-height: 52px;
-  padding: 6px;
-}
-
-.aa-stamp:active {
-  transform: translateY(1px);
-}
-
-.aa-stamp pre {
-  max-height: 64px;
-  font-size: 9.5px;
 }
 
 /* 画像添付 */
@@ -4948,15 +4678,13 @@ body.is-modal-open {
 .profile-card-top,
 .profile-disk-head,
 .status-title,
-.composer-led,
-.aa-title {
+.composer-led {
   font-size: 9px;
 }
 
 .hero-stats dt,
 .stat span,
 .brand-badge,
-.aa-local,
 .footer-tag {
   font-size: 8.5px;
 }
@@ -4964,7 +4692,6 @@ body.is-modal-open {
 .timeline-count,
 .timeline-foot,
 .empty-mark,
-.aa-hint,
 .footer-note {
   font-size: 9px;
 }
@@ -4982,7 +4709,6 @@ body.is-modal-open {
 }
 
 .post-kind,
-.aa-tab,
 .search-suggest,
 .search-suggest a {
   font-size: 10px;
@@ -5018,8 +4744,6 @@ a {
 .gnav-more-item:focus-visible,
 .feed-tab:focus-visible,
 .post-menu-btn:focus-visible,
-.aa-tab:focus-visible,
-.aa-stamp:focus-visible,
 .swatch:focus-visible,
 .modal-close:focus-visible {
   outline: 2px solid var(--orange);

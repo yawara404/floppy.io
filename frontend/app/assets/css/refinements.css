@@ -101,13 +101,12 @@ body { line-height: 1.75; }
 .composer-tools .link-btn { min-height: 40px; padding-inline: 6px; }
 .composer-tools { gap: 6px 12px; }
 .composer .input { font-size: 15px; }
-.aa-tab, .pixel-size-btn, .pixel-tool { min-height: 36px; font-size: 12px; }
-.aa-stamp { min-height: 44px; }
+.pixel-size-btn, .pixel-tool { min-height: 36px; font-size: 12px; }
 .pixel-editor-hint, .pixel-editor-count, .pixel-editor-label { font-size: 11px; }
 .swatch { width: 30px; height: 30px; }
 .post-menu-btn { min-width: 36px; min-height: 36px; }
 .search-suggest, .search-suggest a { font-size: 12px; }
-.gauge-label, .gauge-stats, .aa-hint, .aa-local { font-size: 10px; }
+.gauge-label, .gauge-stats { font-size: 10px; }
 .disk-card { padding: 20px; }
 .disk-card-name { font-size: 18px; }
 .disk-card-desc { font-size: 13px; line-height: 1.9; }
