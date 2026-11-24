@@ -36,7 +36,10 @@ TUNNEL_LOG="$LOG_DIR/tunnel.log"
 TUNNEL_PID="$LOG_DIR/tunnel.pid"
 
 port_busy() {
-  lsof -nP -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1
+  local lsof_path
+  # macOS の launchd では PATH に /usr/sbin がない場合がある。
+  lsof_path="$(command -v lsof || printf '%s' /usr/sbin/lsof)"
+  "$lsof_path" -nP -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1
 }
 
 pid_alive() {

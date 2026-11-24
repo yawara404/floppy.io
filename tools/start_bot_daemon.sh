@@ -22,7 +22,7 @@ start() {
   fi
 
   echo "Bot デーモンを起動します..."
-  nohup "$VENV_PYTHON" "$SCRIPT_DIR/bot.py" watch --interval 20 --soliloquy-interval 90 > "$LOG_FILE" 2>&1 &
+  nohup "$VENV_PYTHON" "$SCRIPT_DIR/bot.py" watch --interval 20 --soliloquy-interval 1800 > "$LOG_FILE" 2>&1 &
   echo $! > "$PID_FILE"
   echo "Bot デーモンを起動しました (PID: $(cat "$PID_FILE"))。"
 }
