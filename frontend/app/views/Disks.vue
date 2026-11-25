@@ -5,7 +5,7 @@
 // 「フォロー中」タイムラインの代わりに、参加中のディスクをここで管理する。
 import { ref, computed, watch, onMounted } from 'vue'
 import { apiGet, apiPost } from '~/utils/api'
-import { isLoggedIn, authReady } from '~/composables/useAuth'
+import { currentUser, isLoggedIn } from '~/composables/useAuth'
 import { formatDate } from '~/utils/format'
 
 const disks = ref([])
@@ -112,14 +112,7 @@ async function createDisk() {
   }
 }
 
-// ログイン状態が確定してから「参加中」タブを読み込む
-watch(
-  () => [isLoggedIn.value, authReady.value],
-  () => {
-    if (isLoggedIn.value && tab.value === 'joined') load()
-  },
-)
-
+watch(() => currentUser.value?.id, load)
 onMounted(load)
 </script>
 
@@ -185,28 +178,33 @@ onMounted(load)
     </div>
 
     <div v-else class="disk-grid">
-      <NuxtLink
-        v-for="disk in visibleDisks"
-        :key="disk.id"
-        class="disk-card"
-        :to="'/d/' + disk.slug"
-      >
-        <span class="disk-card-head">
-          <span class="disk-card-icon" aria-hidden="true">[D]</span>
-          <span class="disk-card-name">{{ disk.name }}</span>
-          <span v-if="disk.is_member" class="disk-card-joined">JOINED</span>
-        </span>
-        <span class="disk-card-slug">/d/{{ disk.slug }}</span>
-        <span class="disk-card-desc">
-          {{ disk.description || '説明はまだありません。' }}
-        </span>
-        <span class="disk-card-foot">
-          <span>{{ disk.post_count }} POSTS</span>
-          <span>{{ disk.member_count }} MEMBERS</span>
-          <span v-if="disk.last_post_at">{{ formatDate(disk.last_post_at) }}</span>
-          <span v-else>EMPTY</span>
-        </span>
-      </NuxtLink>
+      <article v-for="disk in visibleDisks" :key="disk.id" class="disk-card">
+        <NuxtLink class="disk-card-main" :to="'/d/' + disk.slug">
+          <span class="disk-card-head">
+            <span class="disk-card-icon" aria-hidden="true">[D]</span>
+            <span class="disk-card-name">{{ disk.name }}</span>
+            <span v-if="disk.is_member" class="disk-card-joined">JOINED</span>
+          </span>
+          <span class="disk-card-slug">/d/{{ disk.slug }}</span>
+          <span class="disk-card-desc">
+            {{ disk.description || '説明はまだありません。' }}
+          </span>
+          <span class="disk-card-foot">
+            <span>{{ disk.post_count }} POSTS</span>
+            <span>{{ disk.member_count }} MEMBERS</span>
+            <span v-if="disk.last_post_at">{{ formatDate(disk.last_post_at) }}</span>
+            <span v-else>EMPTY</span>
+          </span>
+        </NuxtLink>
+        <NuxtLink
+          v-if="isLoggedIn && disk.is_member"
+          class="btn btn-sm disk-card-bot"
+          :to="{ path: '/d/' + disk.slug, query: { bot: '1' } }"
+          :aria-label="`ディスク Botを開く（${disk.name}）`"
+        >
+          ディスク Botを開く
+        </NuxtLink>
+      </article>
     </div>
 
     <!-- ディスク作成 -->

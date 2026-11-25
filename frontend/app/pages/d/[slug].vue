@@ -10,5 +10,5 @@ useHead({
 </script>
 
 <template>
-  <Disk :slug="slug" />
+  <Disk :slug="slug" :open-bot="route.query.bot === '1'" />
 </template>

@@ -47,5 +47,6 @@ backend/uploads/*
 !.vscode/extensions.json
 .idea/
 
-# ローカル手順書（公開しない）
+# ローカル資料（公開しない）
+/docs/
 /README.local.md

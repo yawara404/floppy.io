@@ -3,12 +3,14 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import Composer from '../components/Composer.vue'
 import PostList from '../components/PostList.vue'
+import DiskBotPanel from '../components/DiskBotPanel.vue'
 import { apiGet, apiPost } from '~/utils/api'
-import { isLoggedIn } from '~/composables/useAuth'
+import { currentUser, isLoggedIn } from '~/composables/useAuth'
 import { formatDate } from '~/utils/format'
 
 const props = defineProps({
   slug: { type: String, required: true },
+  openBot: { type: Boolean, default: false },
 })
 
 const disk = ref(null)
@@ -56,7 +58,9 @@ async function toggleJoin() {
   error.value = ''
 
   try {
-    const data = await apiPost('/disks/join', { slug: disk.value.slug })
+    const target = disk.value
+    const data = await apiPost('/disks/join', { slug: target.slug })
+    if (disk.value !== target) return
     disk.value.is_member = data.is_member
     disk.value.member_count = data.member_count
   } catch (e) {
@@ -72,7 +76,7 @@ function onPosted(post) {
 }
 
 onMounted(load)
-watch(() => props.slug, load)
+watch(() => [props.slug, currentUser.value?.id], load)
 </script>
 
 <template>
@@ -133,6 +137,13 @@ watch(() => props.slug, load)
           <NuxtLink class="btn" to="/disks">ディスク一覧</NuxtLink>
         </div>
       </section>
+
+      <DiskBotPanel
+        v-if="canWrite"
+        :key="`${disk.id}:${currentUser.id}`"
+        :slug="disk.slug"
+        :open-on-entry="openBot"
+      />
 
       <p v-if="error" class="msg msg-error" role="alert">{{ error }}</p>
 

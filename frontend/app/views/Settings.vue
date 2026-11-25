@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import { apiPost, apiUpload, resolveMediaUrl } from '~/utils/api'
 import { currentUser, isLoggedIn, applyUser, logout } from '~/composables/useAuth'
 import PixelEditor from '../components/PixelEditor.vue'
+import SteamSettings from '../components/SteamSettings.vue'
 
 const AVATAR_LIMIT = 1474560
 
@@ -269,6 +270,8 @@ async function removeAvatar() {
           プロフィールとログイン情報を管理します。ユーザー名は変更できません。
         </p>
       </section>
+
+      <SteamSettings :key="currentUser.id" />
 
       <section class="panel">
         <h2 class="panel-title">プロフィール画像</h2>

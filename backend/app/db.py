@@ -68,6 +68,21 @@ def cursor() -> Iterator[DictCursor]:
         connection.close()
 
 
+@contextmanager
+def transaction() -> Iterator[DictCursor]:
+    connection = _connect_with_retry()
+    try:
+        connection.begin()
+        with connection.cursor() as cur:
+            yield cur
+        connection.commit()
+    except BaseException:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
 def fetch_one(sql: str, params: tuple[Any, ...] = ()) -> dict[str, Any] | None:
     with cursor() as cur:
         cur.execute(sql, params)
