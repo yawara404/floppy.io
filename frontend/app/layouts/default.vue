@@ -20,6 +20,8 @@ const path = computed(() => route.path || '/')
 const isDiskPage = computed(() => /^\/d\/[^/]+\/?$/.test(path.value))
 const isProfilePage = computed(() => /^\/u\/[^/]+(?:\/(?:following|followers))?$/.test(path.value))
 const isHome = computed(() => path.value === '/' || path.value === '/following')
+const isDockedFeed = computed(() => isHome.value && isLoggedIn.value)
+const hasMessageDock = computed(() => isDiskPage.value || isDockedFeed.value)
 const isLanding = computed(() => path.value === '/' && authReady.value && !isLoggedIn.value)
 
 const isDisks = computed(
@@ -33,16 +35,16 @@ const profileHref = computed(() =>
   isLoggedIn.value ? `/u/${currentUser.value.username}` : '/login',
 )
 
-const diskViewportStyle = ref(null)
+const messageViewportStyle = ref(null)
 
-function syncDiskViewport() {
+function syncMessageViewport() {
   const viewport = window.visualViewport
-  diskViewportStyle.value = isDiskPage.value && viewport?.scale === 1 && viewport.height < window.innerHeight
-    ? { '--disk-visible-height': `${viewport.height}px` }
+  messageViewportStyle.value = hasMessageDock.value && viewport?.scale === 1 && viewport.height < window.innerHeight
+    ? { '--message-visible-height': `${viewport.height}px` }
     : null
 }
 
-watch(isDiskPage, syncDiskViewport)
+watch(hasMessageDock, syncMessageViewport)
 
 // 画面遷移したらメニューを閉じる
 watch(
@@ -131,7 +133,7 @@ onBeforeUnmount(() => {
   if (copyTimer) clearTimeout(copyTimer)
   document.removeEventListener('click', onDocumentClick)
   document.removeEventListener('keydown', onKeydown)
-  window.visualViewport?.removeEventListener('resize', syncDiskViewport)
+  window.visualViewport?.removeEventListener('resize', syncMessageViewport)
 })
 
 // ハッシュルーターでは href="#main" がルート扱いになるため、
@@ -146,8 +148,8 @@ function skipToMain(event) {
 
 onMounted(() => {
   loadMe()
-  syncDiskViewport()
-  window.visualViewport?.addEventListener('resize', syncDiskViewport)
+  syncMessageViewport()
+  window.visualViewport?.addEventListener('resize', syncMessageViewport)
   document.addEventListener('click', onDocumentClick)
   document.addEventListener('keydown', onKeydown)
 })
@@ -156,8 +158,8 @@ onMounted(() => {
 <template>
   <div
     class="app"
-    :class="{ 'app-disk': isDiskPage }"
-    :style="diskViewportStyle"
+    :class="{ 'app-with-message-dock': hasMessageDock }"
+    :style="messageViewportStyle"
     @contextmenu="onContextMenu"
     @dragstart="onDragStart"
     @copy="onCopy"
@@ -306,7 +308,15 @@ onMounted(() => {
     <!-- モバイル: メニュー外をタップしたら閉じる -->
     <div v-if="menuOpen" class="nav-backdrop" @click="menuOpen = false"></div>
 
-    <div class="page" :class="{ 'page-profile': isProfilePage, 'page-landing': isLanding, 'page-disk': isDiskPage }">
+    <div
+      class="page"
+      :class="{
+        'page-profile': isProfilePage,
+        'page-landing': isLanding,
+        'page-disk': isDiskPage,
+        'page-docked-feed': isDockedFeed,
+      }"
+    >
       <!-- 左カラム -->
       <aside v-if="!isDiskPage" class="sidebar" :class="{ 'sidebar-guest': !isLoggedIn }">
         <ProfileCard v-if="isLoggedIn" :user="currentUser" />
@@ -324,14 +334,14 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="sidebar-status">
+        <div v-if="!isDockedFeed" class="sidebar-status">
           <div class="status-title">SYSTEM STATUS</div>
           <div class="status-row"><span>DISK</span><b>1.44 MB</b></div>
           <div class="status-row"><span>FEED</span><b>RECOMMENDED</b></div>
           <div class="status-row"><span>NOISE</span><b class="ok">0%</b></div>
         </div>
 
-        <div class="sidebar-note">[DISK] 1 投稿 = 1.44MB</div>
+        <div v-if="!isDockedFeed" class="sidebar-note">[DISK] 1 投稿 = 1.44MB</div>
       </aside>
 
       <!-- 右カラム -->
@@ -341,7 +351,7 @@ onMounted(() => {
     </div>
 
     <!-- フッター -->
-    <footer v-if="!isDiskPage" class="page-footer">
+    <footer v-if="!hasMessageDock" class="page-footer">
       <div class="footer-inner">
         <div class="footer-brand">
           <span class="brand-mark brand-mark-sm" aria-hidden="true">
@@ -382,17 +392,17 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.app-disk {
+.app-with-message-dock {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
-  height: var(--disk-visible-height, 100dvh);
+  height: var(--message-visible-height, 100dvh);
   min-height: 0;
   overflow: hidden;
 }
 
-.page.page-disk {
-  display: block;
+.page.page-disk,
+.page.page-docked-feed {
   width: 100%;
   max-width: var(--max);
   min-height: 0;
@@ -400,7 +410,41 @@ onMounted(() => {
   padding: 0;
 }
 
-.page-disk > .content {
+.page.page-disk {
+  display: block;
+}
+
+.page-disk > .content,
+.page-docked-feed > .content {
   height: 100%;
+}
+
+.page.page-docked-feed {
+  grid-template-columns: clamp(12.5rem, 19vw, 15rem) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0;
+  border-inline: 1px solid var(--line-strong);
+  background: var(--paper);
+}
+
+.page-docked-feed > .sidebar {
+  position: static;
+  min-height: 0;
+  padding: 1rem;
+  overflow: auto;
+  border-inline-end: 1px solid var(--line-strong);
+  background: var(--paper-2);
+}
+
+@media (max-width: 920px) {
+  .page.page-docked-feed {
+    grid-template-columns: minmax(0, 1fr);
+    border-inline: 0;
+  }
+
+  .page-docked-feed > .sidebar {
+    display: none;
+  }
 }
 </style>

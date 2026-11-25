@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import Composer from '../components/Composer.vue'
 import PostList from '../components/PostList.vue'
 import { apiGet } from '~/utils/api'
@@ -14,7 +14,11 @@ const props = defineProps({
 const posts = ref([])
 const error = ref('')
 const loading = ref(true)
+const feedScroll = ref(null)
+const postNotice = ref('')
 let loadSequence = 0
+let postedDuringLoad = []
+let noticeTimer
 
 // 'all' = すべて, 'human' = 人間のみ, 'only' = Botのみ
 const botFilter = ref('all')
@@ -33,6 +37,7 @@ function setBotFilter(filter) {
     localStorage.setItem('floppy_bot_filter', filter)
   }
   resetVisible()
+  scrollToFeedStart()
   load()
 }
 
@@ -65,11 +70,15 @@ function resetVisible() {
 
 // 下までスクロールしたら次の 50 件を自動で足す (ボタンでも開ける)
 function onScroll() {
-  if (!hasMorePosts.value) return
-  const nearBottom =
-    window.innerHeight + window.scrollY >=
-    document.documentElement.scrollHeight - 800
+  if (loading.value || !hasMorePosts.value) return
+  const scroller = isLoggedIn.value ? feedScroll.value : document.scrollingElement
+  if (!scroller) return
+  const nearBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 800
   if (nearBottom) showMore()
+}
+
+function scrollToFeedStart() {
+  if (isLoggedIn.value && feedScroll.value) feedScroll.value.scrollTop = 0
 }
 
 // 未ログインの全体タイムラインでのみランディング用ヒーローを出す
@@ -97,6 +106,7 @@ async function load() {
   if (!authReady.value) return
   const sequence = ++loadSequence
   error.value = ''
+  postedDuringLoad = []
 
   // 未ログインでは取得できない（401）ので、案内だけ表示する
   if (needsLogin.value) {
@@ -123,7 +133,11 @@ async function load() {
     const queryString = params.toString()
     const path = queryString ? `/posts?${queryString}` : '/posts'
     const data = await apiGet(path)
-    if (sequence === loadSequence) posts.value = data.posts || []
+    if (sequence === loadSequence) {
+      const incoming = data.posts || []
+      const ids = new Set(postedDuringLoad.map((post) => post.id))
+      posts.value = [...postedDuringLoad, ...incoming.filter((post) => !ids.has(post.id) || post.is_repost)]
+    }
   } catch (e) {
     if (sequence === loadSequence) error.value = e.message
   } finally {
@@ -131,14 +145,27 @@ async function load() {
   }
 }
 
-function onPosted(post) {
-  // どちらのフィードでも自分の投稿を先頭に足す
-  posts.value.unshift(post)
+async function onPosted(post) {
+  clearTimeout(noticeTimer)
+  postNotice.value = '投稿しました。'
+  noticeTimer = setTimeout(() => { postNotice.value = '' }, 3500)
+  if (
+    (botFilter.value === 'only' && !post.is_bot) ||
+    (botFilter.value === 'human' && post.is_bot)
+  ) {
+    return
+  }
+  if (loading.value) postedDuringLoad.unshift(post)
+  posts.value = [post, ...posts.value.filter((item) => item.id !== post.id || item.is_repost)]
+  await nextTick()
+  scrollToFeedStart()
 }
 
 // タブ（タイムライン / フォロー中）を切り替えたら読み直す
 watch(() => props.feed, () => {
   resetVisible()
+  postNotice.value = ''
+  scrollToFeedStart()
   load()
 })
 
@@ -156,12 +183,14 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  loadSequence++
+  clearTimeout(noticeTimer)
   window.removeEventListener('scroll', onScroll)
 })
 </script>
 
 <template>
-  <div class="home-page">
+  <div class="home-page" :class="{ 'home-docked': isLoggedIn }">
     <!-- ランディング: 未ログインのタイムライン -->
     <section v-if="showLanding" class="hero" aria-labelledby="hero-title">
       <div class="hero-copy">
@@ -274,27 +303,6 @@ onUnmounted(() => {
       </article>
     </section>
 
-    <template v-if="isLoggedIn">
-      <div class="section-head">
-        <div>
-          <p class="section-kicker">WRITE TO DISK</p>
-          <h2 class="section-title">今日のフロッピー</h2>
-          <p class="section-note">
-            本文・ドット絵・画像・ファイル。合計 1.44MB まで書き込めます。
-          </p>
-        </div>
-        <span class="timeline-count">DISK READY</span>
-      </div>
-
-      <Composer @posted="onPosted" />
-    </template>
-
-    <div v-else-if="!needsLogin && !showLanding && authReady" class="callout">
-      <span>投稿するにはアカウントが必要です。</span>
-      <NuxtLink class="btn btn-primary" to="/register">新規登録</NuxtLink>
-      <NuxtLink class="btn" to="/login">ログイン</NuxtLink>
-    </div>
-
     <NuxtLink v-if="showLanding" class="discover-link" to="/disks">
       <span class="discover-mark" aria-hidden="true">[D]</span>
       <span><strong>好きなものを、同じディスクに。</strong><span>趣味でつながるコミュニティを探す</span></span>
@@ -302,91 +310,203 @@ onUnmounted(() => {
     </NuxtLink>
 
     <section id="timeline" class="timeline-wrap">
-      <div class="section-head">
-        <div>
-          <p class="section-kicker">
-            {{ isFollowingFeed ? 'FOLLOWING / CHRONOLOGICAL' : isRecommendedFeed ? 'HOME / RECOMMENDED' : 'HOME / CHRONOLOGICAL' }}
-          </p>
-          <h2 class="section-title">
-            {{ isFollowingFeed ? 'フォロー中' : 'タイムライン' }}
-          </h2>
+      <header class="home-feed-header">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">
+              {{ isFollowingFeed ? 'FOLLOWING / CHRONOLOGICAL' : isRecommendedFeed ? 'HOME / RECOMMENDED' : 'HOME / CHRONOLOGICAL' }}
+            </p>
+            <h2 class="section-title">
+              {{ isFollowingFeed ? 'フォロー中' : 'タイムライン' }}
+            </h2>
+          </div>
+          <button type="button" class="link-btn feed-refresh" :disabled="loading" @click="load">
+            <span aria-hidden="true">↻</span> {{ loading ? '読み込み中…' : '更新する' }}
+          </button>
         </div>
-        <button type="button" class="link-btn feed-refresh" :disabled="loading" @click="load">
-          <span aria-hidden="true">↻</span> {{ loading ? '読み込み中…' : '更新する' }}
+
+        <div class="timeline-head">
+          <!-- ホームとディスク一覧をつなぐ（フィードの重複は廃止） -->
+          <nav class="feed-tabs" aria-label="フィード">
+            <NuxtLink
+              class="feed-tab"
+              :class="{ active: !isFollowingFeed }"
+              :aria-current="!isFollowingFeed ? 'page' : undefined"
+              to="/"
+            >タイムライン</NuxtLink>
+            <NuxtLink
+              class="feed-tab"
+              :class="{ active: isFollowingFeed }"
+              :aria-current="isFollowingFeed ? 'page' : undefined"
+              to="/following"
+            >フォロー中</NuxtLink>
+            <NuxtLink class="feed-tab" to="/disks">ディスク</NuxtLink>
+          </nav>
+          <div class="timeline-meta">
+            <div class="bot-filter-group" role="group" aria-label="Bot切り替え">
+              <button
+                type="button"
+                class="bot-filter-btn"
+                :class="{ active: botFilter === 'all' }"
+                :aria-pressed="botFilter === 'all'"
+                title="Botを含むすべての投稿を表示"
+                @click="setBotFilter('all')"
+              >すべて</button>
+              <button
+                type="button"
+                class="bot-filter-btn"
+                :class="{ active: botFilter === 'human' }"
+                :aria-pressed="botFilter === 'human'"
+                title="Botを除いた投稿のみを表示"
+                @click="setBotFilter('human')"
+              >人間のみ</button>
+              <button
+                type="button"
+                class="bot-filter-btn"
+                :class="{ active: botFilter === 'only' }"
+                :aria-pressed="botFilter === 'only'"
+                title="Botの投稿のみを表示"
+                @click="setBotFilter('only')"
+              >Botのみ</button>
+            </div>
+            <span class="timeline-count">{{ isRecommendedFeed ? 'RECOMMENDED' : 'NEWEST FIRST' }}</span>
+          </div>
+        </div>
+      </header>
+
+      <div
+        ref="feedScroll"
+        class="home-feed-scroll"
+        :role="isLoggedIn ? 'region' : undefined"
+        :aria-label="isLoggedIn ? 'タイムラインの投稿' : undefined"
+        :tabindex="isLoggedIn ? 0 : undefined"
+        @scroll.passive="onScroll"
+      >
+        <div v-if="needsLogin" class="callout">
+          <span>フォロー中のタイムラインを見るにはログインが必要です。</span>
+          <NuxtLink class="btn btn-primary" to="/login">ログイン</NuxtLink>
+          <NuxtLink class="btn" to="/register">新規登録</NuxtLink>
+        </div>
+
+        <RequestError v-else-if="error" :message="error" @retry="load" />
+
+        <PostList
+          v-else
+          :posts="displayedPosts"
+          :loading="loading"
+          :empty-text="emptyText"
+          :foot-label="isRecommendedFeed ? 'RECOMMENDED / LIMIT 200' : 'CHRONO / LIMIT 200'"
+          @changed="load"
+        />
+
+        <button
+          v-if="hasMorePosts"
+          type="button"
+          class="btn"
+          style="display: block; margin: 16px auto 0"
+          @click="showMore"
+        >
+          さらに表示（残り {{ posts.length - visibleCount }} 件）
         </button>
       </div>
 
-      <div class="timeline-head">
-        <!-- ホームとディスク一覧をつなぐ（フィードの重複は廃止） -->
-        <nav class="feed-tabs" aria-label="フィード">
-          <NuxtLink
-            class="feed-tab"
-            :class="{ active: !isFollowingFeed }"
-            :aria-current="!isFollowingFeed ? 'page' : undefined"
-            to="/"
-          >タイムライン</NuxtLink>
-          <NuxtLink
-            class="feed-tab"
-            :class="{ active: isFollowingFeed }"
-            :aria-current="isFollowingFeed ? 'page' : undefined"
-            to="/following"
-          >フォロー中</NuxtLink>
-          <NuxtLink class="feed-tab" to="/disks">ディスク</NuxtLink>
-        </nav>
-        <div class="timeline-meta">
-          <div class="bot-filter-group" role="group" aria-label="Bot切り替え">
-            <button
-              type="button"
-              class="bot-filter-btn"
-              :class="{ active: botFilter === 'all' }"
-              title="Botを含むすべての投稿を表示"
-              @click="setBotFilter('all')"
-            >すべて</button>
-            <button
-              type="button"
-              class="bot-filter-btn"
-              :class="{ active: botFilter === 'human' }"
-              title="Botを除いた投稿のみを表示"
-              @click="setBotFilter('human')"
-            >人間のみ</button>
-            <button
-              type="button"
-              class="bot-filter-btn"
-              :class="{ active: botFilter === 'only' }"
-              title="Botの投稿のみを表示"
-              @click="setBotFilter('only')"
-            >Botのみ</button>
-          </div>
-          <span class="timeline-count">{{ isRecommendedFeed ? 'RECOMMENDED' : 'NEWEST FIRST' }}</span>
+      <div v-if="isLoggedIn" class="home-composer-dock">
+        <div class="home-post-status" role="status">
+          <span v-if="postNotice">{{ postNotice }}</span>
         </div>
+        <Composer message-bar @posted="onPosted" />
       </div>
-
-      <div v-if="needsLogin" class="callout">
-        <span>フォロー中のタイムラインを見るにはログインが必要です。</span>
-        <NuxtLink class="btn btn-primary" to="/login">ログイン</NuxtLink>
-        <NuxtLink class="btn" to="/register">新規登録</NuxtLink>
-      </div>
-
-      <RequestError v-else-if="error" :message="error" @retry="load" />
-
-      <PostList
-        v-else
-        :posts="displayedPosts"
-        :loading="loading"
-        :empty-text="emptyText"
-        :foot-label="isRecommendedFeed ? 'RECOMMENDED / LIMIT 200' : 'CHRONO / LIMIT 200'"
-        @changed="load"
-      />
-
-      <button
-        v-if="hasMorePosts"
-        type="button"
-        class="btn"
-        style="display: block; margin: 16px auto 0"
-        @click="showMore"
-      >
-        さらに表示（残り {{ posts.length - visibleCount }} 件）
-      </button>
     </section>
   </div>
 </template>
+
+<style scoped>
+.home-feed-header > .section-head {
+  margin-bottom: 1rem;
+}
+
+.home-docked,
+.home-docked .timeline-wrap {
+  height: 100%;
+  min-height: 0;
+}
+
+.home-docked .timeline-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.home-docked .home-feed-header {
+  padding: .65rem clamp(.65rem, 2vw, 1.2rem) .35rem;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.home-docked .home-feed-header > .section-head {
+  align-items: center;
+  margin-bottom: .3rem;
+}
+
+.home-docked .timeline-head {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.home-docked .home-feed-scroll {
+  min-width: 0;
+  min-height: 0;
+  padding: .65rem clamp(.65rem, 2vw, 1.2rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.home-composer-dock {
+  position: relative;
+  min-width: 0;
+  padding: .45rem clamp(.65rem, 2vw, 1.2rem) max(.7rem, env(safe-area-inset-bottom));
+  background: var(--paper);
+}
+
+.home-post-status {
+  position: absolute;
+  z-index: 2;
+  inset-inline-end: .85rem;
+  inset-block-end: 100%;
+}
+
+.home-post-status span {
+  display: block;
+  padding: .15rem .6rem;
+  border: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font-size: .85rem;
+}
+
+@media (max-width: 700px) {
+  .home-docked .section-title {
+    font-size: 1.15rem;
+  }
+
+  .home-docked .section-kicker {
+    display: none;
+  }
+
+  .home-docked .timeline-head {
+    gap: .2rem .5rem;
+  }
+
+  .home-docked .feed-tabs {
+    flex-wrap: wrap;
+    gap: .2rem .6rem;
+  }
+
+  .home-docked .feed-tab {
+    min-height: 36px;
+    padding-inline: .3rem;
+    white-space: nowrap;
+  }
+}
+</style>

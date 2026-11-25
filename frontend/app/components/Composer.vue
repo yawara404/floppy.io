@@ -460,7 +460,7 @@ onBeforeUnmount(() => {
 .composer-message-bar textarea.input {
   field-sizing: content;
   min-height: 44px;
-  max-height: calc(var(--disk-visible-height, 100dvh) * .22);
+  max-height: calc(var(--message-visible-height, 100dvh) * .22);
   padding: .5rem .6rem;
   resize: none;
   background: var(--paper-2);
