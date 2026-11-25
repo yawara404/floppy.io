@@ -311,7 +311,7 @@ onUnmounted(() => {
 
     <section id="timeline" class="timeline-wrap">
       <header class="home-feed-header">
-        <div class="section-head">
+        <div v-if="authReady && !isLoggedIn" class="section-head">
           <div>
             <p class="section-kicker">
               {{ isFollowingFeed ? 'FOLLOWING / CHRONOLOGICAL' : isRecommendedFeed ? 'HOME / RECOMMENDED' : 'HOME / CHRONOLOGICAL' }}
@@ -326,7 +326,6 @@ onUnmounted(() => {
         </div>
 
         <div class="timeline-head">
-          <!-- ホームとディスク一覧をつなぐ（フィードの重複は廃止） -->
           <nav class="feed-tabs" aria-label="フィード">
             <NuxtLink
               class="feed-tab"
@@ -340,9 +339,30 @@ onUnmounted(() => {
               :aria-current="isFollowingFeed ? 'page' : undefined"
               to="/following"
             >フォロー中</NuxtLink>
-            <NuxtLink class="feed-tab" to="/disks">ディスク</NuxtLink>
+            <NuxtLink v-if="!isLoggedIn" class="feed-tab" to="/disks">ディスク</NuxtLink>
           </nav>
-          <div class="timeline-meta">
+          <div v-if="isLoggedIn" class="home-feed-controls">
+            <label class="home-filter">
+              <select
+                :value="botFilter"
+                aria-label="Botの表示"
+                @change="setBotFilter($event.target.value)"
+              >
+                <option value="all">すべて</option>
+                <option value="human">人間のみ</option>
+                <option value="only">Botのみ</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              class="link-btn home-feed-refresh"
+              :disabled="loading"
+              :aria-busy="loading"
+              aria-label="タイムラインを更新"
+              @click="load"
+            >更新</button>
+          </div>
+          <div v-else class="timeline-meta">
             <div class="bot-filter-group" role="group" aria-label="Bot切り替え">
               <button
                 type="button"
@@ -395,7 +415,7 @@ onUnmounted(() => {
           :posts="displayedPosts"
           :loading="loading"
           :empty-text="emptyText"
-          :foot-label="isRecommendedFeed ? 'RECOMMENDED / LIMIT 200' : 'CHRONO / LIMIT 200'"
+          :foot-label="isLoggedIn ? '' : isRecommendedFeed ? 'RECOMMENDED / LIMIT 200' : 'CHRONO / LIMIT 200'"
           @changed="load"
         />
 
@@ -438,34 +458,125 @@ onUnmounted(() => {
 }
 
 .home-docked .home-feed-header {
-  padding: .65rem clamp(.65rem, 2vw, 1.2rem) .35rem;
+  padding: 0 clamp(.5rem, 2vw, 1.2rem);
   border-bottom: 1px solid var(--line-strong);
 }
 
-.home-docked .home-feed-header > .section-head {
-  align-items: center;
-  margin-bottom: .3rem;
-}
-
 .home-docked .timeline-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 .4rem;
   margin: 0;
   padding: 0;
   border: 0;
 }
 
+.home-docked .feed-tabs {
+  width: auto;
+  min-width: 0;
+  gap: .3rem;
+  overflow-x: auto;
+}
+
+.home-docked .feed-tab {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 .4rem;
+  white-space: nowrap;
+}
+
+.home-docked .feed-tab.active {
+  font-weight: 700;
+}
+
+.home-docked .feed-tab:focus-visible {
+  outline-offset: -2px;
+}
+
+.home-feed-controls {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: .2rem;
+}
+
+.home-filter {
+  position: relative;
+}
+
+.home-filter::after {
+  position: absolute;
+  right: .6rem;
+  top: 50%;
+  width: .35rem;
+  height: .35rem;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  color: var(--ink-2);
+  pointer-events: none;
+  content: '';
+  transform: translateY(-70%) rotate(45deg);
+}
+
+.home-filter select {
+  min-height: 34px;
+  padding: 0 1.35rem 0 .45rem;
+  appearance: none;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  background: var(--paper-2);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: .8rem;
+  cursor: pointer;
+}
+
+.home-feed-refresh {
+  min-width: 44px;
+  min-height: 44px;
+  font-size: .8rem;
+  text-align: center;
+}
+
 .home-docked .home-feed-scroll {
   min-width: 0;
   min-height: 0;
-  padding: .65rem clamp(.65rem, 2vw, 1.2rem);
+  padding: .4rem clamp(.5rem, 2vw, 1.2rem);
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
 }
 
+.home-docked .home-feed-scroll :deep(.post) {
+  gap: .6rem;
+  padding: .75rem clamp(.55rem, 2vw, .9rem);
+}
+
+.home-docked .home-feed-scroll :deep(.post-avatar img),
+.home-docked .home-feed-scroll :deep(.post-avatar canvas) {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.home-docked .home-feed-scroll :deep(.post-bytes) {
+  flex: 0 1 auto;
+  margin-inline-start: auto;
+}
+
+.home-docked .home-feed-scroll :deep(.post-text) {
+  margin-block: .25rem;
+}
+
+.home-docked .home-feed-scroll :deep(.post-actions) {
+  gap: .2rem .45rem;
+  margin-top: .25rem;
+}
+
 .home-composer-dock {
   position: relative;
   min-width: 0;
-  padding: .45rem clamp(.65rem, 2vw, 1.2rem) max(.7rem, env(safe-area-inset-bottom));
+  padding: .35rem clamp(.5rem, 2vw, 1.2rem) max(.5rem, env(safe-area-inset-bottom));
   background: var(--paper);
 }
 
@@ -485,28 +596,29 @@ onUnmounted(() => {
   font-size: .85rem;
 }
 
-@media (max-width: 700px) {
-  .home-docked .section-title {
-    font-size: 1.15rem;
+@media (pointer: coarse) {
+  .home-filter select {
+    min-height: 40px;
+    font-size: 1rem;
   }
+}
 
-  .home-docked .section-kicker {
-    display: none;
-  }
-
-  .home-docked .timeline-head {
-    gap: .2rem .5rem;
-  }
-
+@media (max-width: 380px) {
+  .home-docked .timeline-head,
   .home-docked .feed-tabs {
-    flex-wrap: wrap;
-    gap: .2rem .6rem;
+    column-gap: .15rem;
   }
 
   .home-docked .feed-tab {
-    min-height: 36px;
-    padding-inline: .3rem;
-    white-space: nowrap;
+    padding-inline: .25rem;
+  }
+
+  .home-filter select {
+    padding-inline: .3rem 1rem;
+  }
+
+  .home-filter::after {
+    right: .4rem;
   }
 }
 </style>

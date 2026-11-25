@@ -152,7 +152,7 @@ function canDelete(post) {
           />
         </template>
       </div>
-      <div v-if="!messageLog" class="timeline-foot">
+      <div v-if="!messageLog && footLabel" class="timeline-foot">
         <span>DAT No.001-{{ String(props.posts.length).padStart(3, '0') }}</span>
         <span>{{ props.footLabel }}</span>
       </div>

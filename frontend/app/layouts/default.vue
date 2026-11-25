@@ -158,7 +158,7 @@ onMounted(() => {
 <template>
   <div
     class="app"
-    :class="{ 'app-with-message-dock': hasMessageDock }"
+    :class="{ 'app-with-message-dock': hasMessageDock, 'app-docked-feed': isDockedFeed }"
     :style="messageViewportStyle"
     @contextmenu="onContextMenu"
     @dragstart="onDragStart"
@@ -417,6 +417,11 @@ onMounted(() => {
 .page-disk > .content,
 .page-docked-feed > .content {
   height: 100%;
+}
+
+.app-docked-feed .topbar-inner {
+  min-height: 52px;
+  padding-block: 4px;
 }
 
 .page.page-docked-feed {
