@@ -17,12 +17,13 @@ const navToggle = ref(null)
 const moreToggle = ref(null)
 
 const path = computed(() => route.path || '/')
+const isDiskPage = computed(() => /^\/d\/[^/]+\/?$/.test(path.value))
 const isProfilePage = computed(() => /^\/u\/[^/]+(?:\/(?:following|followers))?$/.test(path.value))
 const isHome = computed(() => path.value === '/' || path.value === '/following')
 const isLanding = computed(() => path.value === '/' && authReady.value && !isLoggedIn.value)
 
 const isDisks = computed(
-  () => path.value === '/disks' || /^\/d\/[^/]+$/.test(path.value),
+  () => path.value === '/disks' || isDiskPage.value,
 )
 const isMoreActive = computed(
   () => path.value === '/settings' || path.value === '/help',
@@ -31,6 +32,17 @@ const isMoreActive = computed(
 const profileHref = computed(() =>
   isLoggedIn.value ? `/u/${currentUser.value.username}` : '/login',
 )
+
+const diskViewportStyle = ref(null)
+
+function syncDiskViewport() {
+  const viewport = window.visualViewport
+  diskViewportStyle.value = isDiskPage.value && viewport?.scale === 1 && viewport.height < window.innerHeight
+    ? { '--disk-visible-height': `${viewport.height}px` }
+    : null
+}
+
+watch(isDiskPage, syncDiskViewport)
 
 // 画面遷移したらメニューを閉じる
 watch(
@@ -119,6 +131,7 @@ onBeforeUnmount(() => {
   if (copyTimer) clearTimeout(copyTimer)
   document.removeEventListener('click', onDocumentClick)
   document.removeEventListener('keydown', onKeydown)
+  window.visualViewport?.removeEventListener('resize', syncDiskViewport)
 })
 
 // ハッシュルーターでは href="#main" がルート扱いになるため、
@@ -133,6 +146,8 @@ function skipToMain(event) {
 
 onMounted(() => {
   loadMe()
+  syncDiskViewport()
+  window.visualViewport?.addEventListener('resize', syncDiskViewport)
   document.addEventListener('click', onDocumentClick)
   document.addEventListener('keydown', onKeydown)
 })
@@ -141,6 +156,8 @@ onMounted(() => {
 <template>
   <div
     class="app"
+    :class="{ 'app-disk': isDiskPage }"
+    :style="diskViewportStyle"
     @contextmenu="onContextMenu"
     @dragstart="onDragStart"
     @copy="onCopy"
@@ -289,9 +306,9 @@ onMounted(() => {
     <!-- モバイル: メニュー外をタップしたら閉じる -->
     <div v-if="menuOpen" class="nav-backdrop" @click="menuOpen = false"></div>
 
-    <div class="page" :class="{ 'page-profile': isProfilePage, 'page-landing': isLanding }">
+    <div class="page" :class="{ 'page-profile': isProfilePage, 'page-landing': isLanding, 'page-disk': isDiskPage }">
       <!-- 左カラム -->
-      <aside class="sidebar" :class="{ 'sidebar-guest': !isLoggedIn }">
+      <aside v-if="!isDiskPage" class="sidebar" :class="{ 'sidebar-guest': !isLoggedIn }">
         <ProfileCard v-if="isLoggedIn" :user="currentUser" />
 
         <div v-else class="profile-card login-cta">
@@ -324,7 +341,7 @@ onMounted(() => {
     </div>
 
     <!-- フッター -->
-    <footer class="page-footer">
+    <footer v-if="!isDiskPage" class="page-footer">
       <div class="footer-inner">
         <div class="footer-brand">
           <span class="brand-mark brand-mark-sm" aria-hidden="true">
@@ -363,3 +380,27 @@ onMounted(() => {
     </Transition>
   </div>
 </template>
+
+<style scoped>
+.app-disk {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  height: var(--disk-visible-height, 100dvh);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.page.page-disk {
+  display: block;
+  width: 100%;
+  max-width: var(--max);
+  min-height: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.page-disk > .content {
+  height: 100%;
+}
+</style>

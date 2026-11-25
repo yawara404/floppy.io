@@ -12,6 +12,7 @@ import { resolveMediaUrl } from '~/utils/api'
 const props = defineProps({
   post: { type: Object, required: true },
   canDelete: { type: Boolean, default: false },
+  messageLog: { type: Boolean, default: false },
 })
 
 defineEmits(['delete', 'share', 'like', 'repost'])
@@ -21,13 +22,17 @@ const { canvas, draw: drawAvatar } = useAvatarCanvas(() => props.post)
 const menuOpen = ref(false)
 const confirming = ref(false)
 const replying = ref(false)
+const excerptLength = computed(() => props.messageLog ? 2000 : 220)
+const excerptLines = computed(() => props.messageLog ? 30 : 6)
 const hasExcerpt = computed(() => {
   const text = String(props.post.text || '')
-  return text.length > 220 || text.split('\n').length > 6
+  return text.length > excerptLength.value || text.split('\n').length > excerptLines.value
 })
 const excerpt = computed(() => {
   const text = String(props.post.text || '')
-  return hasExcerpt.value ? `${text.slice(0, 220).split('\n').slice(0, 6).join('\n')}…` : text
+  return hasExcerpt.value
+    ? `${text.slice(0, excerptLength.value).split('\n').slice(0, excerptLines.value).join('\n')}…`
+    : text
 })
 
 // カード全体をクリックしたら個別ビュー（/p/:id）へ。
@@ -105,7 +110,7 @@ watch(
 </script>
 
 <template>
-  <article class="post post-clickable" @click="onArticleClick">
+  <article class="post post-clickable" :class="{ 'post-message': messageLog }" @click="onArticleClick">
     <div class="post-avatar">
       <img
         v-if="avatarImage"
@@ -168,7 +173,7 @@ watch(
         <span class="post-date">{{ formatDateTime(post.created_at) }}</span>
         <span class="post-dot">/</span>
         <span class="post-kind">{{ postKind }}</span>
-        <template v-if="post.disk">
+        <template v-if="post.disk && !messageLog">
           <span class="post-dot">/</span>
           <NuxtLink class="post-disk" :to="'/d/' + post.disk.slug">
             [D] {{ post.disk.name }}
@@ -332,6 +337,33 @@ watch(
     </div>
   </article>
 </template>
+
+<style scoped>
+.post-message {
+  gap: .6rem;
+  padding: .7rem .85rem;
+  border-bottom-color: var(--line);
+}
+
+.post-message .post-bytes {
+  flex: 0 1 auto;
+  margin-inline-start: auto;
+}
+
+.post-message .post-text {
+  margin-top: .35rem;
+  overflow-wrap: anywhere;
+}
+
+.post-message .post-excerpt {
+  -webkit-line-clamp: 30;
+}
+
+.post-message .post-actions {
+  gap: .25rem .45rem;
+  margin-top: .25rem;
+}
+</style>
 
 <style scoped>
 .repost-banner {

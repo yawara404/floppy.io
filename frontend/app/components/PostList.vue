@@ -1,13 +1,15 @@
 <script setup>
-import { ref, nextTick } from 'vue'
+import { computed, ref, nextTick } from 'vue'
 import PostItem from './PostItem.vue'
 import ShareDialog from './ShareDialog.vue'
 import { apiPost, apiDelete } from '~/utils/api'
 import { isLoggedIn, currentUser, refreshUser } from '~/composables/useAuth'
+import { formatDate } from '~/utils/format'
 
 const props = defineProps({
   posts: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
+  messageLog: { type: Boolean, default: false },
   emptyText: {
     type: String,
     default: 'まだ投稿がありません。最初の 1 枚を書き込んでみましょう。',
@@ -19,7 +21,17 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['changed', 'like-changed'])
+const emit = defineEmits(['changed', 'like-changed', 'deleted'])
+
+const rows = computed(() => {
+  let previousDate = ''
+  return props.posts.map((post) => {
+    const date = props.messageLog ? formatDate(post.created_at) : ''
+    const separator = date !== previousDate ? date : ''
+    previousDate = date
+    return { post, separator }
+  })
+})
 
 const error = ref('')
 const sharePost = ref(null)
@@ -45,6 +57,7 @@ async function removePost(post) {
   try {
     await apiDelete('/delete_post', { id: post.id })
     await refreshUser()
+    emit('deleted', post)
     emit('changed')
   } catch (e) {
     error.value = e.message
@@ -125,19 +138,21 @@ function canDelete(post) {
     </div>
 
     <template v-else>
-      <div class="timeline">
-        <PostItem
-          v-for="post in props.posts"
-          :key="post.timeline_key || post.id"
-          :post="post"
-          :can-delete="canDelete(post)"
-          @delete="removePost"
-          @like="toggleLike"
-          @repost="toggleRepost"
-          @share="openShare"
-        />
+      <div class="timeline" :class="{ 'timeline-messages': messageLog }">
+        <template v-for="{ post, separator } in rows" :key="post.timeline_key || post.id">
+          <p v-if="separator" class="message-date">{{ separator }}</p>
+          <PostItem
+            :post="post"
+            :can-delete="canDelete(post)"
+            :message-log="messageLog"
+            @delete="removePost"
+            @like="toggleLike"
+            @repost="toggleRepost"
+            @share="openShare"
+          />
+        </template>
       </div>
-      <div class="timeline-foot">
+      <div v-if="!messageLog" class="timeline-foot">
         <span>DAT No.001-{{ String(props.posts.length).padStart(3, '0') }}</span>
         <span>{{ props.footLabel }}</span>
       </div>
@@ -151,3 +166,30 @@ function canDelete(post) {
     />
   </div>
 </template>
+
+<style scoped>
+.timeline-messages {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.message-date {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin: 1rem .75rem .35rem;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: .8rem;
+}
+
+.message-date::before,
+.message-date::after {
+  flex: 1;
+  border-bottom: 1px dashed var(--line);
+  content: '';
+}
+</style>

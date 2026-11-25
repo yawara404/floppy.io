@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onBeforeUnmount, nextTick, useId, watch } from 'vue'
 import AAStampPicker from './AAStampPicker.vue'
 import DiskGauge from './DiskGauge.vue'
 import PixelEditor from './PixelEditor.vue'
@@ -11,6 +11,7 @@ import { formatNumber } from '~/utils/format'
 const props = defineProps({
   // 書き込み先のディスク (コミュニティ)。null ならホームへ投稿する。
   disk: { type: Object, default: null },
+  messageBar: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['posted'])
@@ -34,6 +35,10 @@ function onPixelResize(size) {
 }
 const showEditor = ref(false)
 const showAA = ref(false)
+const toolsOpen = ref(false)
+const toolsId = useId()
+const pixelId = useId()
+const pixelPanel = ref(null)
 
 const loading = ref(false)
 const error = ref('')
@@ -105,6 +110,27 @@ const draftBytes = computed(
     floppyBytes.value,
 )
 const overLimit = computed(() => draftBytes.value > DISK_LIMIT)
+const hasDraft = computed(() => Boolean(
+  text.value.trim() || !pixelIsBlank(pixelData.value) || imageFile.value || floppyFile.value,
+))
+
+watch(showEditor, (open) => {
+  if (open && props.messageBar) pixelPanel.value?.showModal()
+}, { flush: 'post' })
+
+function closeEditor() {
+  pixelPanel.value?.close?.()
+  showEditor.value = false
+}
+
+function onComposerKeydown(event) {
+  if (event.key !== 'Enter' || event.isComposing || event.keyCode === 229) return
+  const desktopEnter = props.messageBar && !event.shiftKey && !event.altKey
+    && !window.matchMedia('(pointer: coarse)').matches
+  if (!event.metaKey && !event.ctrlKey && !desktopEnter) return
+  event.preventDefault()
+  if (!props.messageBar || hasDraft.value) submit()
+}
 
 function onFileChange(event) {
   const file = event.target.files?.[0]
@@ -162,12 +188,7 @@ async function submit() {
   if (loading.value) return
   error.value = ''
 
-  if (
-    !text.value.trim() &&
-    pixelIsBlank(pixelData.value) &&
-    !imageFile.value &&
-    !floppyFile.value
-  ) {
+  if (!hasDraft.value) {
     error.value = '本文・ドット絵・画像・フロッピーファイルのいずれかを入力してください。'
     return
   }
@@ -204,6 +225,7 @@ async function submit() {
     text.value = ''
     pixelData.value = blankPixel(pixelWidth.value, pixelHeight.value)
     showEditor.value = false
+    toolsOpen.value = false
     clearImage()
     clearFloppy()
     await refreshUser()
@@ -221,8 +243,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="composer">
-    <div class="composer-head">
+  <section class="composer" :class="{ 'composer-message-bar': messageBar }">
+    <div v-if="!messageBar" class="composer-head">
       <div>
         <h2 class="composer-title">いま、なにを残す？</h2>
         <NuxtLink
@@ -237,21 +259,40 @@ onBeforeUnmount(() => {
       <span class="composer-led"><span class="pulse-dot"></span>REC</span>
     </div>
 
-    <textarea
-      id="post-text"
-      ref="textareaRef"
-      v-model="text"
-      class="input"
-      aria-label="投稿の本文"
-      :aria-invalid="overLimit"
-      rows="4"
-      @keydown.meta.enter.prevent="submit"
-      @keydown.ctrl.enter.prevent="submit"
-      placeholder="1.44MB まで書けます。容量と相談しながら、残したい言葉を。"
-    ></textarea>
+    <div :class="{ 'composer-message-row': messageBar }">
+      <button
+        v-if="messageBar"
+        type="button"
+        class="btn composer-add-tools"
+        aria-label="メッセージツール"
+        :aria-expanded="toolsOpen"
+        :aria-controls="toolsId"
+        :disabled="loading"
+        @click="toolsOpen = !toolsOpen"
+      ><span aria-hidden="true">{{ toolsOpen ? '−' : '+' }}</span></button>
+      <textarea
+        id="post-text"
+        ref="textareaRef"
+        v-model="text"
+        class="input"
+        :aria-label="messageBar ? 'メッセージの本文' : '投稿の本文'"
+        :aria-invalid="overLimit"
+        :readonly="messageBar && loading"
+        :rows="messageBar ? 1 : 4"
+        @keydown="onComposerKeydown"
+        :placeholder="messageBar ? 'メッセージを書く' : '1.44MB まで書けます。容量と相談しながら、残したい言葉を。'"
+      ></textarea>
+      <button
+        v-if="messageBar"
+        type="button"
+        class="btn btn-primary publish-btn"
+        :disabled="loading || overLimit || !hasDraft"
+        @click="submit"
+      >{{ loading ? '送信中…' : '送信' }}</button>
+    </div>
 
-    <!-- 容量メーター：いま書いている投稿の消費バイト数（1投稿 = 1.44MB） -->
     <DiskGauge
+      v-if="!messageBar"
       :used="draftBytes"
       :limit="DISK_LIMIT"
       label="DISK (C:) / この投稿"
@@ -281,7 +322,7 @@ onBeforeUnmount(() => {
       {{ error }}
     </p>
 
-    <div class="composer-row">
+    <div v-show="!messageBar || toolsOpen" :id="toolsId" class="composer-row">
       <div class="composer-tools">
         <button
           type="button"
@@ -295,7 +336,7 @@ onBeforeUnmount(() => {
           [AA] スタンプ
         </button>
 
-        <button type="button" class="link-btn" :aria-expanded="showEditor" aria-controls="pixel-panel" @click="showEditor = !showEditor">
+        <button type="button" class="link-btn" :aria-expanded="showEditor" :aria-controls="showEditor ? pixelId : undefined" @click="showEditor = !showEditor">
           {{ showEditor ? '▾ ドット絵を閉じる' : '▸ ドット絵を描く' }}
         </button>
 
@@ -321,11 +362,11 @@ onBeforeUnmount(() => {
         <span v-if="imageBytes" class="image-meta">
           {{ formatNumber(imageBytes) }} bytes
         </span>
-        <span v-if="floppyFile" class="image-meta">
+        <span v-if="floppyFile && !messageBar" class="image-meta">
           [F] {{ floppyFile.name }} · {{ formatNumber(floppyBytes) }} bytes
         </span>
         <button
-          v-if="floppyFile"
+          v-if="floppyFile && !messageBar"
           type="button"
           class="link-btn danger"
           @click="clearFloppy"
@@ -334,9 +375,10 @@ onBeforeUnmount(() => {
         </button>
       </div>
 
-      <span class="spacer"></span>
+      <span v-if="!messageBar" class="spacer"></span>
 
       <button
+        v-if="!messageBar"
         type="button"
         class="btn btn-primary publish-btn"
         :disabled="loading || overLimit"
@@ -347,15 +389,165 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
+    <div v-if="messageBar" class="composer-message-meta">
+      <div v-if="floppyFile" class="composer-attached-file">
+        <span>{{ floppyFile.name }}</span>
+        <button type="button" class="link-btn" aria-label="添付ファイルを外す" @click="clearFloppy">外す</button>
+      </div>
+      <span v-if="!pixelIsBlank(pixelData)" class="composer-pixel-attached">ドット絵あり</span>
+      <div class="composer-byte-count" :class="{ 'input-over-limit': overLimit }">
+        <meter
+          aria-label="このメッセージの使用容量"
+          :value="Math.min(draftBytes, DISK_LIMIT)"
+          :max="DISK_LIMIT"
+          :high="DISK_LIMIT * .9"
+        ></meter>
+        <span>{{ formatNumber(draftBytes) }} / {{ formatNumber(DISK_LIMIT) }} bytes</span>
+      </div>
+      <p v-if="overLimit" class="composer-limit-error" role="status">1.44MBの上限を超えています。</p>
+    </div>
+
     <AAStampPicker v-if="showAA" @select="insertStamp" @close="showAA = false" />
 
-    <PixelEditor
+    <component
+      :is="messageBar ? 'dialog' : 'div'"
       v-if="showEditor"
-      id="pixel-panel"
-      v-model="pixelData"
-      :canvas-width="pixelWidth"
-      :canvas-height="pixelHeight"
-      @resize="onPixelResize"
-    />
+      :id="pixelId"
+      ref="pixelPanel"
+      :class="messageBar ? 'composer-pixel-dialog' : undefined"
+      :aria-label="messageBar ? 'ドット絵エディタ' : undefined"
+      @cancel.prevent="closeEditor"
+    >
+      <PixelEditor
+        v-model="pixelData"
+        :canvas-width="pixelWidth"
+        :canvas-height="pixelHeight"
+        @resize="onPixelResize"
+      />
+      <button v-if="messageBar" type="button" class="btn btn-primary" @click="closeEditor">完了</button>
+    </component>
   </section>
 </template>
+
+<style scoped>
+.composer.composer-message-bar {
+  padding: .65rem .75rem .45rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: var(--paper);
+  box-shadow: 3px 3px 0 var(--shadow);
+}
+
+.composer-message-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: end;
+  gap: .5rem;
+}
+
+.composer-message-row .btn {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.composer-add-tools {
+  min-width: 44px;
+  color: var(--accent-deep);
+  font-family: var(--font-mono);
+  font-size: 1.3rem;
+}
+
+.composer-message-bar textarea.input {
+  field-sizing: content;
+  min-height: 44px;
+  max-height: calc(var(--disk-visible-height, 100dvh) * .22);
+  padding: .5rem .6rem;
+  resize: none;
+  background: var(--paper-2);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.composer-message-bar .composer-tools {
+  width: 100%;
+  flex-wrap: nowrap;
+  gap: .3rem;
+  margin: 0;
+  overflow-x: auto;
+}
+
+.composer-message-bar .composer-tools button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.composer-message-bar .image-preview img {
+  max-height: 64px;
+  width: auto;
+}
+
+.composer-message-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .3rem .6rem;
+  padding-top: .35rem;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: .75rem;
+}
+
+.composer-byte-count,
+.composer-attached-file {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  min-width: 0;
+}
+
+.composer-attached-file span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-byte-count {
+  margin-inline-start: auto;
+  white-space: nowrap;
+}
+
+.composer-byte-count meter {
+  width: 3.75rem;
+  height: .5rem;
+}
+
+.composer-byte-count.input-over-limit,
+.composer-limit-error {
+  color: var(--danger);
+}
+
+.composer-limit-error {
+  width: 100%;
+  margin: 0;
+  text-align: end;
+}
+
+.composer-pixel-dialog {
+  width: min(640px, calc(100% - 24px));
+  max-height: calc(100dvh - 24px);
+  margin: auto;
+  padding: .8rem;
+  overflow: auto;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.composer-pixel-dialog::backdrop {
+  background: rgb(25 37 29 / 52%);
+}
+
+.composer-pixel-dialog .btn-primary {
+  margin-top: .75rem;
+}
+</style>
